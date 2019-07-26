@@ -616,6 +616,56 @@ impl U256 {
         address[0..34].copy_from_slice(&base58[32..66]);        
         address
     }
+   
+    pub fn sign(self, z: U256) -> (U256, U256) {
+        let k = self.deterministic_k(z);
+        let Point((f, _)) = Point::g().multiple(k);
+        let r = f.u;
+        let k_f = Field256 {u: k, p: N};
+        let r_f = Field256 {u: r, p: N};
+        let z_f = Field256 {u: z, p: N};
+        let key_f = Field256 {u: self, p: N};
+        let mut s = (z_f + r_f * key_f) / k_f;
+        if s > N() / U256((0u128, 2u128)) {
+            s = N() - s;
+        }
+        (r, s)
+    }
+
+    pub fn deterministic_k(self, z_input: U256) -> U256 {
+        let mut k = U256::zero().to_be_bytes();
+        let mut v = [0x01; 32];
+        let mut z = z_input;
+        if z > N():
+            z = z - N();
+        let z_bytes = z.to_be_bytes();
+        let secret_bytes = self.to_be_bytes();
+        let mut data = [0u8; 97];
+        data[0..32].copy_from_slice(&v[0..32]);
+        data[32] = 0x00;
+        data[33..65].copy_from_slice(&secret_bytes[0..32]);
+        data[65..97].copy_from_slice(&z_bytes[0..32]);
+        k = HMAC::mac(&data, &k);
+        v = HMAC::mac(&v, &k);
+        data[0..32].copy_from_slice(&v[0..32]);
+        data[32] = 0x01;
+        data[33..65].copy_from_slice(&secret_bytes[0..32]);
+        data[65..97].copy_from_slice(&z_bytes[0..32]);
+        k = HMAC::mac(&data, &k);
+        v = HMAC::mac(&v, &k);
+        loop {
+            v = HMAC::mac(&v, &k);
+            let candidate = U256::from_be_bytes(v);
+            if candidate >= U256::one() && candidate < N() {
+                return candidate;
+            }
+            let mut data_2 = [0u8; 33];
+            data_2[0..32].copy_from_slice(&v[0..32]);
+            data_2[32] = 0x00;
+            k = HMAC::mac(&data_2, &k);
+            v = HMAC::mac(&v, &k);
+        }
+    }
 
    pub fn calculate_wif(self, is_testnet: bool)  -> [u8; 51]{
         let U256((x0, x1)) = self;
