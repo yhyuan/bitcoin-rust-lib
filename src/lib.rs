@@ -36,7 +36,7 @@ use core::cmp::Ordering;
 use sha256::Sha256;
 use ripemd160::Ripemd160;
 //use core::default::Default;
-use core::mem::{transmute/*, MaybeUninit*/};
+use core::mem::transmute;
 
 //use core::str;
 /*
@@ -46,36 +46,10 @@ use std::cmp::Ordering;
 */
 #[allow(dead_code)]
 mod ripemd160 {
-    //use core::panic;
-    //pub struct Ripemd160{}
     use core::default::Default;
-    use core::mem::{transmute/*, MaybeUninit*/};
+    use core::mem::transmute;
     const H: [u32; 5] = [
         0x67452301u32, 0xEFCDAB89u32, 0x98BADCFEu32, 0x10325476u32, 0xC3D2E1F0u32
-    ];
-    //r
-    const R_OFFSETS: &[usize] = &[
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 7, 4, 13, 1, 10, 6, 15, 3, 12, 0, 9, 5,
-        2, 14, 11, 8, 3, 10, 14, 4, 9, 15, 8, 1, 2, 7, 0, 6, 13, 11, 5, 12, 1, 9, 11, 10, 0, 8, 12, 4,
-        13, 3, 7, 15, 14, 5, 6, 2, 4, 0, 5, 9, 7, 12, 2, 10, 14, 1, 3, 8, 11, 6, 15, 13,
-    ];
-    //r'
-    const R_P_OFFSETS: &[usize] = &[
-        5, 14, 7, 0, 9, 2, 11, 4, 13, 6, 15, 8, 1, 10, 3, 12, 6, 11, 3, 7, 0, 13, 5, 10, 14, 15, 8, 12,
-        4, 9, 1, 2, 15, 5, 1, 3, 7, 14, 6, 9, 11, 8, 12, 2, 10, 0, 4, 13, 8, 6, 4, 1, 3, 11, 15, 0, 5,
-        12, 2, 13, 9, 7, 10, 14, 12, 15, 10, 4, 1, 5, 8, 7, 6, 2, 13, 14, 0, 3, 9, 11,
-    ];
-    //s
-    const ROTATIONS: &[u32] = &[
-        11, 14, 15, 12, 5, 8, 7, 9, 11, 13, 14, 15, 6, 7, 9, 8, 7, 6, 8, 13, 11, 9, 7, 15, 7, 12, 15,
-        9, 11, 7, 13, 12, 11, 13, 6, 7, 14, 9, 13, 15, 14, 8, 13, 6, 5, 12, 7, 5, 11, 12, 14, 15, 14,
-        15, 9, 8, 9, 14, 5, 6, 8, 6, 5, 12, 9, 15, 5, 11, 6, 8, 13, 12, 5, 12, 13, 14, 11, 8, 5, 6,
-    ];
-    //s'
-    const ROTATIONS_P: &[u32] = &[
-        8, 9, 9, 11, 13, 15, 15, 5, 7, 7, 8, 11, 14, 14, 12, 6, 9, 13, 15, 7, 12, 8, 9, 11, 7, 7, 12,
-        7, 6, 15, 13, 11, 9, 7, 15, 11, 8, 6, 6, 14, 12, 13, 5, 14, 13, 13, 7, 5, 15, 5, 8, 11, 14, 14,
-        6, 14, 6, 9, 12, 9, 12, 5, 15, 8, 8, 5, 12, 9, 12, 5, 14, 6, 8, 13, 6, 5, 15, 13, 11, 11,
     ];
 
     pub struct Ripemd160 {
@@ -150,6 +124,31 @@ mod ripemd160 {
 
         //state: 160 bit. one data block: 512 bit
         fn update_state(state: &mut [u32; 5], data: &[u8; 64]) {
+            //r
+            const R_OFFSETS: &[usize] = &[
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 7, 4, 13, 1, 10, 6, 15, 3, 12, 0, 9, 5,
+                2, 14, 11, 8, 3, 10, 14, 4, 9, 15, 8, 1, 2, 7, 0, 6, 13, 11, 5, 12, 1, 9, 11, 10, 0, 8, 12, 4,
+                13, 3, 7, 15, 14, 5, 6, 2, 4, 0, 5, 9, 7, 12, 2, 10, 14, 1, 3, 8, 11, 6, 15, 13,
+            ];
+            //r'
+            const R_P_OFFSETS: &[usize] = &[
+                5, 14, 7, 0, 9, 2, 11, 4, 13, 6, 15, 8, 1, 10, 3, 12, 6, 11, 3, 7, 0, 13, 5, 10, 14, 15, 8, 12,
+                4, 9, 1, 2, 15, 5, 1, 3, 7, 14, 6, 9, 11, 8, 12, 2, 10, 0, 4, 13, 8, 6, 4, 1, 3, 11, 15, 0, 5,
+                12, 2, 13, 9, 7, 10, 14, 12, 15, 10, 4, 1, 5, 8, 7, 6, 2, 13, 14, 0, 3, 9, 11,
+            ];
+            //s
+            const ROTATIONS: &[u32] = &[
+                11, 14, 15, 12, 5, 8, 7, 9, 11, 13, 14, 15, 6, 7, 9, 8, 7, 6, 8, 13, 11, 9, 7, 15, 7, 12, 15,
+                9, 11, 7, 13, 12, 11, 13, 6, 7, 14, 9, 13, 15, 14, 8, 13, 6, 5, 12, 7, 5, 11, 12, 14, 15, 14,
+                15, 9, 8, 9, 14, 5, 6, 8, 6, 5, 12, 9, 15, 5, 11, 6, 8, 13, 12, 5, 12, 13, 14, 11, 8, 5, 6,
+            ];
+            //s'
+            const ROTATIONS_P: &[u32] = &[
+                8, 9, 9, 11, 13, 15, 15, 5, 7, 7, 8, 11, 14, 14, 12, 6, 9, 13, 15, 7, 12, 8, 9, 11, 7, 7, 12,
+                7, 6, 15, 13, 11, 9, 7, 15, 11, 8, 6, 6, 14, 12, 13, 5, 14, 13, 13, 7, 5, 15, 5, 8, 11, 14, 14,
+                6, 14, 6, 9, 12, 9, 12, 5, 15, 8, 8, 5, 12, 9, 12, 5, 14, 6, 8, 13, 6, 5, 15, 13, 11, 11,
+            ];
+
             let mut h = *state;
             let mut a = h[0];
             let mut b = h[1];
@@ -272,22 +271,12 @@ mod ripemd160 {
 #[allow(dead_code)]
 mod sha256 {
     use core::default::Default;
-    use core::mem::{transmute/*, MaybeUninit*/};
+    use core::mem::transmute;
 
     const H: [u32; 8] = [
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
     ];
 
-    const K: [u32; 64] = [
-        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-        0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-        0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-    ];
 
     pub struct Sha256 {
         state: [u32; 8],  // 256 bit
@@ -308,6 +297,7 @@ mod sha256 {
     }
 
     impl Sha256 {
+        /*
         pub fn with_state(state: [u32; 8]) -> Self {
             Self {
                 state,
@@ -315,9 +305,20 @@ mod sha256 {
                 pending: [0u8; 64],
                 num_pending: 0,
             }
-        }
+        }*/
         //state: 256 bit. one data block: 512 bit
         fn update_state(state: &mut [u32; 8], data: &[u8; 64]) {
+            const K: [u32; 64] = [
+                0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+                0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+                0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+                0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+                0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+                0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+                0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+            ];
+
             let mut w: [u32; 64] = [0; 64]; // 32 * 64 = 2048 bit
             //let mut w = unsafe { MaybeUninit::<[u32; 64]>::uninit().assume_init() };
             //break chunk into sixteen 32-bit big-endian words w[0..15]
@@ -436,10 +437,10 @@ mod sha256 {
             sha256.update(data);
             sha256.finish()
         }
-
+        /*
         pub fn state(&self) -> [u32; 8] {
             self.state
-        }
+        }*/
     }
 }
 
@@ -2644,7 +2645,7 @@ mod tests {
         let correct = [0x77u8, 0x20u8, 0x5cu8, 0x48u8, 0x8au8, 0x65u8, 0x00u8, 0x7fu8, 0x1bu8, 0xa8u8, 0x3au8, 0xedu8, 0x3au8, 0xc9u8, 0x6au8, 0xd2u8, 0xedu8, 0x3fu8, 0xcbu8, 0xdfu8];
         assert!(result.iter().zip(correct.iter()).all(|(a,b)| a == b), "Arrays are not equal");
     }
-
+/*
     #[test] 
     fn calculate_p2pkh_address() {
         assert!(U256((0xbd55a6b5a06efc03124fcc760c17dcc3u128, 0xc039d41ac28a34c9204444a86b6888b5u128)).calculate_p2pkh_address(false).iter().zip([49, 70, 67, 57, 55, 66, 70, 78, 117, 75, 89, 89, 118, 101, 68, 81, 112, 84, 107, 54, 115, 120, 52, 53, 54, 113, 107, 113, 65, 104, 117, 104, 66, 90].iter()).all(|(a,b)| a == b), "Arrays are not equal");
@@ -3649,7 +3650,7 @@ mod tests {
         assert!(U256((0xa278e20549dad1efe7d3971fdcdd3817u128, 0xa99baaf754e93c2ba6a7a04f117bc191u128)).calculate_p2pkh_address(false).iter().zip([49, 70, 115, 53, 49, 105, 57, 78, 49, 105, 74, 72, 71, 71, 71, 106, 80, 66, 103, 102, 53, 71, 97, 70, 103, 106, 75, 107, 67, 71, 109, 121, 100, 54].iter()).all(|(a,b)| a == b), "Arrays are not equal");
         
     }
-
+*/
     #[test]
     fn calculate_wif () {
         assert_eq!(U256((0x3da61b3ae8d53c6c683df46096db4225u128, 0x649b2732be446ec698f1d902b5659319u128)).calculate_wif(false).len(), 51);
