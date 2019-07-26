@@ -1129,13 +1129,76 @@ impl Add for Point {
     }
 }
 
+pub struct HMAC;
+
+impl HMAC {
+    /// Compute HMAC-SHA256(`input`, `k`)
+    pub fn mac(input: &[u8], k: &[u8]) -> [u8; 32] {
+        let mut key = [0u8; 64];
+        if k.len() > 64 {
+            let hash_key = Sha256::digest(k);
+            key[0..32].copy_from_slice(&hash_key[0..32]);
+        } else {
+            key[0..k.len()].copy_from_slice(&k[..]);
+        }
+        let mut i_key_pad = [0x36; 64];
+        for i in 0..64 {
+            i_key_pad[i] = i_key_pad[i] ^ key[i];
+        } 
+        let mut sha256 = Sha256::default();        
+        sha256.update(&i_key_pad);
+        sha256.update(input);
+
+        let mut o_key_pad = [0x5c; 64];
+        for i in 0..64 {
+            o_key_pad[i] = o_key_pad[i] ^ key[i];
+        } 
+        let mut sha256_2 = Sha256::default();        
+        sha256_2.update(&o_key_pad);
+        sha256_2.update(&sha256.finish());
+        sha256_2.finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use Field256;
     use U256;
     use Point;
+    use HMAC;
     use sha256::Sha256;
     use ripemd160::Ripemd160;
+    
+    #[test]
+    fn hmac_mac() {
+        let h = HMAC::mac(&[], &[0u8; 32]);
+        assert_eq!(
+            &h[..],
+            &[
+                182, 19, 103, 154, 8, 20, 217, 236, 119, 47, 149, 215, 120, 195, 95, 197, 255, 22, 151,
+                196, 147, 113, 86, 83, 198, 199, 18, 20, 66, 146, 197, 173
+            ]
+        );
+
+        let h = HMAC::mac(&[42u8; 69], &[]);
+        assert_eq!(
+            &h[..],
+            &[
+                225, 88, 35, 8, 78, 185, 165, 6, 235, 124, 28, 250, 112, 124, 159, 119, 159, 88, 184,
+                61, 7, 37, 166, 229, 71, 154, 83, 153, 151, 181, 182, 72
+            ]
+        );
+
+        let h = HMAC::mac(&[69u8; 250], &[42u8; 50]);
+        assert_eq!(
+            &h[..],
+            &[
+                112, 156, 120, 216, 86, 25, 79, 210, 155, 193, 32, 120, 116, 134, 237, 14, 198, 1, 64,
+                41, 124, 196, 103, 91, 109, 216, 36, 133, 4, 234, 218, 228
+            ]
+        );
+    }
+    
     #[test]
     fn u256_zero() {
         let U256((upper, lower)) = U256::zero();
