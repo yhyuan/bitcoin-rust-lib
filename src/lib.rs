@@ -444,6 +444,14 @@ mod sha256 {
     }
 }
 
+const N: fn() -> U256 = || -> U256 {
+    U256((0xfffffffffffffffffffffffffffffffeu128, 0xbaaedce6af48a03bbfd25e8cd0364141u128))
+};
+
+const N_2: fn() -> U256 = || -> U256 {
+    U256((0xfffffffffffffffffffffffffffffffeu128, 0xbaaedce6af48a03bbfd25e8cd0364141u128))
+};
+
 const BTC_ALPHA: [u8; 58] = [49, 50, 51, 52, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70, 71, 72, 74, 75, 76, 77, 78, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122]; 
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
@@ -457,6 +465,15 @@ impl U256 {
         let mut x1: [u8; 16] = [0; 16];
         x1[0..16].copy_from_slice(&x[16..32]);
         U256((u128::from_be_bytes(x0), u128::from_be_bytes(x1)))
+    }
+    pub fn to_be_bytes(self) -> [u8; 32] {
+        let mut x: [u8; 32] = [0; 32];
+        let U256((x0, x1)) = self;
+        let x0_bytes = x0.to_be_bytes();
+        x[0..16].copy_from_slice(&x0_bytes[0..16]);
+        let x1_bytes = x1.to_be_bytes();
+        x[16..32].copy_from_slice(&x1_bytes[0..16]);
+        x
     }
     pub fn max_value() -> U256 { U256((u128::max_value(), u128::max_value())) }
     pub fn multiple_u128(x: &u128, y: &u128) -> U256 {
@@ -625,8 +642,9 @@ impl U256 {
         let r_f = Field256 {u: r, p: N};
         let z_f = Field256 {u: z, p: N};
         let key_f = Field256 {u: self, p: N};
-        let mut s = (z_f + r_f * key_f) / k_f;
-        if s > N() / U256((0u128, 2u128)) {
+        let s_f = (z_f + r_f * key_f) / k_f;
+        let mut s = s_f.u;
+        if s > U256((0xfffffffffffffffffffffffffffffffeu128 / 2u128, 0xbaaedce6af48a03bbfd25e8cd0364141u128 / 2u128)) {
             s = N() - s;
         }
         (r, s)
@@ -636,8 +654,9 @@ impl U256 {
         let mut k = U256::zero().to_be_bytes();
         let mut v = [0x01; 32];
         let mut z = z_input;
-        if z > N():
+        if z > N() {
             z = z - N();
+        }
         let z_bytes = z.to_be_bytes();
         let secret_bytes = self.to_be_bytes();
         let mut data = [0u8; 97];
@@ -950,9 +969,6 @@ const P: fn() -> U256 = || -> U256 {
     U256((0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFu128, 0xFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fu128))
 };
 
-const N: fn() -> U256 = || -> U256 {
-    U256((0xfffffffffffffffffffffffffffffffeu128, 0xbaaedce6af48a03bbfd25e8cd0364141u128))
-};
 
 impl Field256 {
     pub fn zero(p: fn() -> U256) -> Field256 { Field256 {u: U256((0u128, 0u128)), p: p}}
