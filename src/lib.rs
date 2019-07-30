@@ -713,7 +713,17 @@ impl U256 {
         }
         (b, size)
     }
-    
+    pub fn encode_der_signature(u: (U256, U256)) -> ([u8; 72], u8) {
+        let (u1, u2) = u;
+        let (a, a_len) = u1.der_encode();
+        let (b, b_len) = u2.der_encode();
+        let mut r: [u8; 72] = [0; 72];        
+        r[2..2+a_len].copy_from_slice(&a[0..a_len]);
+        r[2+a_len..2+a_len + b_len].copy_from_slice(&b[0..b_len]);
+        r[0] = 0x30u8;
+        r[1] = a_len + b_len;
+        (r, a_len + b_len + 2)
+    }
    pub fn calculate_wif(self, is_testnet: bool)  -> [u8; 51]{
         let U256((x0, x1)) = self;
         let mut a: [u8; 33] = [0; 33]; // 32 * 65
