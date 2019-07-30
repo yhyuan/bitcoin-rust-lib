@@ -683,7 +683,37 @@ impl U256 {
             v = HMAC::mac(&v, &k);
         }
     }
-
+    
+    pub fn der_encode(self) -> ([u8; 35], u8) {
+        let U256((x0, x1)) = self;
+        let mut a: [u8; 32] = [0; 32];
+        let mut b: [u8; 35] = [0; 35];
+        a[0..16].copy_from_slice(&x0.to_be_bytes());
+        a[16..32].copy_from_slice(&x1.to_be_bytes());
+        let mut num_of_zeros = 0u8;
+        for i in 0..32 {
+            if a[i] == 0x00u8 {
+                num_of_zeros = num_of_zeros + 1;
+            } else {
+                break;
+            }
+        }
+        let larger = a[num_of_zeros] > 0x80u8;
+        let size = if larger {32 - num_of_zeros + 1} else {32 - num_of_zeros};
+        b[0] = 0x02u8;
+        b[1] = size;
+        let mut i = 2u8;
+        if larger {
+            b[i] = 0x00u8;
+            i = i + 1;
+        }
+        for j in num_of_zeros..32 {
+            b[i] = a[j];
+            i = i + 1;
+        }
+        (b, size)
+    }
+    
    pub fn calculate_wif(self, is_testnet: bool)  -> [u8; 51]{
         let U256((x0, x1)) = self;
         let mut a: [u8; 33] = [0; 33]; // 32 * 65
