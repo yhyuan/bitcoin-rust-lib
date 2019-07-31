@@ -415,6 +415,9 @@ mod sha256 {
 const N: fn() -> U256 = || -> U256 {
     U256((0xfffffffffffffffffffffffffffffffeu128, 0xbaaedce6af48a03bbfd25e8cd0364141u128))
 };
+const P: fn() -> U256 = || -> U256 {
+    U256((0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFu128, 0xFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fu128))
+};
 
 const BTC_ALPHA: [u8; 58] = [49, 50, 51, 52, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70, 71, 72, 74, 75, 76, 77, 78, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122]; 
 #[repr(C)]
@@ -489,7 +492,6 @@ impl U256 {
             let S256((u, _)) = *x;
             u.is_zero()
         };
-        //print_s256(&(mn.1));
         while !is_zero(&(mn.1)){
             let (divider, remainder) = mn.0 / mn.1;
             let (_, z1) = divider * xy.1;
@@ -601,19 +603,12 @@ impl U256 {
     pub fn sign(self, z: U256) -> (U256, U256) {
         let U256((x0, x1)) = self;
         let k = self.deterministic_k(z);
-        let U256((x0, x1)) = k;
-        println!("k: {:x}, {:x}", x0, x1);
         let Point((f, _)) = Point::g().multiple(k);
         let r = f.u;
-        let U256((x0, x1)) = r;
-        println!("r: {:x}, {:x}", x0, x1);
         let k_f = Field256 {u: k, p: N};
         let r_f = Field256 {u: r, p: N};
         let z_f = Field256 {u: z, p: N};
         let key_f = Field256 {u: U256((x0, x1)), p: N};
-        let x = r_f * key_f;
-        let U256((x0, x1)) = x.u;
-        println!("r_f * key_f: {:x}, {:x}", x0, x1);
         let s_f = (z_f + (r_f * key_f)) / k_f;
         let mut s = s_f.u;
         
@@ -658,8 +653,50 @@ impl U256 {
             v = HMAC::mac(&v, &k);
         }
     }
+    
+    pub fn der_encode(self) -> ([u8; 35], usize) {
+        let U256((x0, x1)) = self;
+        let mut a: [u8; 32] = [0; 32];
+        let mut b: [u8; 35] = [0; 35];
+        a[0..16].copy_from_slice(&x0.to_be_bytes());
+        a[16..32].copy_from_slice(&x1.to_be_bytes());
+        let mut num_of_zeros: usize = 0;
+        for i in 0..32 {
+            if a[i] == 0x00u8 {
+                num_of_zeros = num_of_zeros + 1;
+            } else {
+                break;
+            }
+        }
+        let larger = a[num_of_zeros] >= 0x80u8;
+        let size = if larger {32 - num_of_zeros + 1} else {32 - num_of_zeros};
+        b[0] = 0x02u8;
+        b[1] = size as u8;
+        let mut i: usize = 2;
+        if larger {
+            b[i] = 0x00u8;
+            i = i + 1;
+        }
+        for j in num_of_zeros..32 {
+            b[i] = a[j];
+            i = i + 1;
+        }
+        (b, size)
+    }
 
-   pub fn calculate_wif(self, is_testnet: bool)  -> [u8; 51]{
+    pub fn encode_der_signature(u: (U256, U256)) -> ([u8; 72], usize) {
+        let (u1, u2) = u;
+        let (a, a_len) = u1.der_encode();
+        let (b, b_len) = u2.der_encode();
+        let mut r: [u8; 72] = [0; 72];        
+        r[2..2+a_len].copy_from_slice(&a[0..a_len]);
+        r[2+a_len..2+a_len + b_len].copy_from_slice(&b[0..b_len]);
+        r[0] = 0x30u8;
+        r[1] = (a_len + b_len) as u8;
+        (r, a_len + b_len + 2)
+    }
+
+    pub fn calculate_wif(self, is_testnet: bool)  -> [u8; 51]{
         let U256((x0, x1)) = self;
         let mut a: [u8; 33] = [0; 33]; // 32 * 65
         a[0] = if is_testnet {0xefu8} else {0x80u8};//main net
@@ -938,15 +975,28 @@ struct Field256 {
     p: fn() -> U256
 }
 
-const P: fn() -> U256 = || -> U256 {
-    U256((0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFu128, 0xFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fu128))
-};
-
-
 impl Field256 {
     pub fn zero(p: fn() -> U256) -> Field256 { Field256 {u: U256((0u128, 0u128)), p: p}}
     pub fn one(p: fn() -> U256) -> Field256 { Field256 {u: U256((0u128, 1u128)), p: p}}
     pub fn max_value(p: fn() -> U256) -> Field256 { Field256 {u: p() - U256::one(), p: p}}
+    pub fn eliminate(x : (u128, u128, u128), prime: U256) -> U256 {
+        match x {
+            (0u128, x1, x2) if U256((x1, x2)) < prime => U256((x1, x2)),
+            (0u128, x1, x2) if U256((x1, x2)) >= prime => U256((x1, x2)) - prime,
+            (x0, x1, x2) => {
+                let (U256((_, z0)), z) = U256((0u128, x0)) * prime;
+                let t = U256((x1, x2));
+                if t >= z {
+                    let U256((w1, w2)) = t - z;
+                    Field256::eliminate((x0 - z0, w1, w2), prime)
+                } else {
+                    let U256((w1, w2)) = U256::max_value() - z + t + U256::one();
+                    Field256::eliminate((x0 - z0 - 1, w1, w2), prime)
+                }
+            },
+        }
+    }
+
 }
 
 impl Add for Field256 {
@@ -1020,26 +1070,9 @@ impl Mul for Field256 {
         let other_p = other.p;
         let prime = self_p();
         assert_eq!(prime, other_p());
-        let p_minus = U256::max_value() - prime + U256::one();
         let (U256((x0, x1)), U256((x2, x3))) = self_u256 * other_u256;
-        let eliminate = |x: u128, u: U256| -> U256 {
-            let U256((_, p_minus_x1)) = p_minus;
-            let (mut v, o) = U256::multiple_u128(&x, &p_minus_x1).overflowing_add(u);
-            let u_p = prime;
-            if v >= u_p {
-                v = v - u_p;
-            }
-            if o {
-                let u_p_minus = p_minus;
-                v = v + u_p_minus;
-            }
-            if v >= u_p {
-                v = v - u_p;
-            }
-            v
-        };
-        let U256((y0, y1)) = eliminate(x0, U256((x1, x2)));
-        let u = eliminate(y0, U256((y1, x3)));
+        let U256((y0, y1)) = Field256::eliminate((x0, x1, x2), prime);
+        let u = Field256::eliminate((y0, y1, x3), prime);
         Field256 {u: u, p: self_p}
     }
 }
@@ -1201,7 +1234,15 @@ impl HMAC {
 
 
 fn main() {
-    let (U256((x0, x1)), U256((y0, y1))) = U256((0x85fe9664cdfb27264efd2450c1dd9a8du128, 0x8bc6b7f666d9941515ad6367401548d4u128)).sign(U256((0x27996e34954f08e92178c39c4d53e364u128, 0x6f3d7b382bd3d6659eb8d9121b8d5a6au128)));
-    println!("{:x}, {:x}", x0, x1);
-    println!("{:x}, {:x}", y0, y1);
+    let (data, size) = U256::encode_der_signature((U256((0xc392799ed0ed5110f66b4d8a25eda2d7u128, 0x174de25168c96bb5563dffa20cef1d98u128)),U256((0x6dc3b0999c9d020947e3f0caee1332a1u128, 0x2d2237cd6412629ac2767a6224f56f83u128))));
+    //println!("{:x}, {:x}", x0, x1);
+    //println!("{:x}, {:x}", y0, y1);
+    println!("size: {:x}", size);
+    println!("data[0]: {:x}", data[0]);
+    println!("data[1]: {:x}", data[1]);
+    println!("data[2]: {:x}", data[2]);
+    println!("data[3]: {:x}", data[3]);
+    println!("data[4]: {:x}", data[4]);
+    println!("data[5]: {:x}", data[5]);
+
 }
