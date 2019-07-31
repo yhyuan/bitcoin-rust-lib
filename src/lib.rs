@@ -521,7 +521,6 @@ impl U256 {
             let S256((u, _)) = *x;
             u.is_zero()
         };
-        //print_s256(&(mn.1));
         while !is_zero(&(mn.1)){
             let (divider, remainder) = mn.0 / mn.1;
             let (_, z1) = divider * xy.1;
@@ -684,13 +683,13 @@ impl U256 {
         }
     }
     
-    pub fn der_encode(self) -> ([u8; 35], u8) {
+    pub fn der_encode(self) -> ([u8; 35], usize) {
         let U256((x0, x1)) = self;
         let mut a: [u8; 32] = [0; 32];
         let mut b: [u8; 35] = [0; 35];
         a[0..16].copy_from_slice(&x0.to_be_bytes());
         a[16..32].copy_from_slice(&x1.to_be_bytes());
-        let mut num_of_zeros = 0u8;
+        let mut num_of_zeros: usize = 0;
         for i in 0..32 {
             if a[i] == 0x00u8 {
                 num_of_zeros = num_of_zeros + 1;
@@ -701,8 +700,8 @@ impl U256 {
         let larger = a[num_of_zeros] > 0x80u8;
         let size = if larger {32 - num_of_zeros + 1} else {32 - num_of_zeros};
         b[0] = 0x02u8;
-        b[1] = size;
-        let mut i = 2u8;
+        b[1] = size as u8;
+        let mut i: usize = 2;
         if larger {
             b[i] = 0x00u8;
             i = i + 1;
@@ -713,7 +712,8 @@ impl U256 {
         }
         (b, size)
     }
-    pub fn encode_der_signature(u: (U256, U256)) -> ([u8; 72], u8) {
+
+    pub fn encode_der_signature(u: (U256, U256)) -> ([u8; 72], usize) {
         let (u1, u2) = u;
         let (a, a_len) = u1.der_encode();
         let (b, b_len) = u2.der_encode();
@@ -721,10 +721,11 @@ impl U256 {
         r[2..2+a_len].copy_from_slice(&a[0..a_len]);
         r[2+a_len..2+a_len + b_len].copy_from_slice(&b[0..b_len]);
         r[0] = 0x30u8;
-        r[1] = a_len + b_len;
+        r[1] = (a_len + b_len) as u8;
         (r, a_len + b_len + 2)
     }
-   pub fn calculate_wif(self, is_testnet: bool)  -> [u8; 51]{
+
+    pub fn calculate_wif(self, is_testnet: bool)  -> [u8; 51]{
         let U256((x0, x1)) = self;
         let mut a: [u8; 33] = [0; 33]; // 32 * 65
         a[0] = if is_testnet {0xefu8} else {0x80u8};//main net
@@ -1298,6 +1299,13 @@ mod tests {
     use ripemd160::Ripemd160;
     use P;
     use N;
+
+    #[test]
+    fn u256_encode_der_signature() {
+        let (h, h_size) = U256::encode_der_signature((U256((0x3dc0c2c3ed1b9ca1a42331c4769edff6u128, 0xe56878f5125c3519fb1a81b42643b73eu128)), U256((0x4c46372aa420f337b02a35e1b8b9001cu128, 0xe272ad0143e71e9bee7a7127a5d8fc17u128))));
+        assert_eq!(h_size, 70);
+        //assert_eq!(&h[..], &[0x30, 0x44, 0x2, 0x20, 0x3d, 0xc0, 0xc2, 0xc3, 0xed, 0x1b, 0x9c, 0xa1, 0xa4, 0x23, 0x31, 0xc4, 0x76, 0x9e, 0xdf, 0xf6, 0xe5, 0x68, 0x78, 0xf5, 0x12, 0x5c, 0x35, 0x19, 0xfb, 0x1a, 0x81, 0xb4, 0x26, 0x43, 0xb7, 0x3e, 0x2, 0x20, 0x4c, 0x46, 0x37, 0x2a, 0xa4, 0x20, 0xf3, 0x37, 0xb0, 0x2a, 0x35, 0xe1, 0xb8, 0xb9, 0x0, 0x1c, 0xe2, 0x72, 0xad, 0x1, 0x43, 0xe7, 0x1e, 0x9b, 0xee, 0x7a, 0x71, 0x27, 0xa5, 0xd8, 0xfc, 0x17, 0x0, 0x0]);
+    }
 
     #[test]
     fn hmac_mac() {
