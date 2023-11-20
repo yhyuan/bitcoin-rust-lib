@@ -128,44 +128,45 @@ impl Add for Point {
 #[cfg(test)]
 mod tests {
     use crate::point::Point;
-    use crate::u256::U256;
-/*
+    use crate::u256::{U256, P, N};
+    use crate::field256::Field256;
+
     #[test]
     fn point_add() {
-        let n_7 = FiniteElement(U256::new(0u128, 7u128));
+        let n_7 = Field256::new(U256::new(0u128, 7u128), P);
         let p1 = Point::g();
         let p2 = p1 + p1;
-        let Point((x, y)) = p2;
-        assert_eq!(FiniteElement(U256::new(0xc6047f9441ed7d6d3045406e95c07cd8u128, 0x5c778e4b8cef3ca7abac09b95c709ee5u128)), x);
-        assert_eq!(FiniteElement(U256::new(0x1ae168fea63dc339a3c58419466ceaeeu128, 0xf7f632653266d0e1236431a950cfe52au128)), y);
+        let (x, y) = p2.unwrap();
+        assert_eq!(Field256::new(U256::new(0xc6047f9441ed7d6d3045406e95c07cd8u128, 0x5c778e4b8cef3ca7abac09b95c709ee5u128), P), x);
+        assert_eq!(Field256::new(U256::new(0x1ae168fea63dc339a3c58419466ceaeeu128, 0xf7f632653266d0e1236431a950cfe52au128), P), y);
         assert_eq!(y*y, x*x*x + n_7);
-        let Point((x1, y1)) = p1;
-        let Point((x2, y2)) = p2;
-        assert_eq!(x2, FiniteElement(U256::new(0xc6047f9441ed7d6d3045406e95c07cd8u128, 0x5c778e4b8cef3ca7abac09b95c709ee5u128)));
-        assert_eq!(y2, FiniteElement(U256::new(0x1ae168fea63dc339a3c58419466ceaeeu128, 0xf7f632653266d0e1236431a950cfe52au128)));
-        assert_eq!(x1, FiniteElement(U256::new(0x79be667ef9dcbbac55a06295ce870b07u128, 0x029bfcdb2dce28d959f2815b16f81798u128)));
-        assert_eq!(y1, FiniteElement(U256::new(0x483ada7726a3c4655da4fbfc0e1108a8u128, 0xfd17b448a68554199c47d08ffb10d4b8u128)));
+        let (x1, y1) = p1.unwrap();
+        let (x2, y2) = p2.unwrap();
+        assert_eq!(x2, Field256::new(U256::new(0xc6047f9441ed7d6d3045406e95c07cd8u128, 0x5c778e4b8cef3ca7abac09b95c709ee5u128), P));
+        assert_eq!(y2, Field256::new(U256::new(0x1ae168fea63dc339a3c58419466ceaeeu128, 0xf7f632653266d0e1236431a950cfe52au128), P));
+        assert_eq!(x1, Field256::new(U256::new(0x79be667ef9dcbbac55a06295ce870b07u128, 0x029bfcdb2dce28d959f2815b16f81798u128), P));
+        assert_eq!(y1, Field256::new(U256::new(0x483ada7726a3c4655da4fbfc0e1108a8u128, 0xfd17b448a68554199c47d08ffb10d4b8u128), P));
         let s = (y2 - y1) / (x2 - x1);
-        assert_eq!(s, FiniteElement(U256::new(0x342119815c0f816f31f431a9fe98a6c7u128, 0x6d11425ecaeaecf2d0ef6def197c56b0u128)));
+        assert_eq!(s, Field256::new(U256::new(0x342119815c0f816f31f431a9fe98a6c7u128, 0x6d11425ecaeaecf2d0ef6def197c56b0u128), P));
         let s2 = s * s;
-        assert_eq!(s2, FiniteElement(U256::new(0x38f37014ce22fc29cf19f28a5ce4da09u128, 0x1445536c3e2cff318ba07c2a3048f518u128)));
+        assert_eq!(s2, Field256::new(U256::new(0x38f37014ce22fc29cf19f28a5ce4da09u128, 0x1445536c3e2cff318ba07c2a3048f518u128), P));
         let x3 = s * s - (x1 + x2);
-        assert_eq!(x3, FiniteElement(U256::new(0xf9308a019258c31049344f85f89d5229u128, 0xb531c845836f99b08601f113bce036f9u128)));
+        assert_eq!(x3, Field256::new(U256::new(0xf9308a019258c31049344f85f89d5229u128, 0xb531c845836f99b08601f113bce036f9u128), P));
     
         let y3 = s * (x1 - x3) - y1;
-        assert_eq!(y3, FiniteElement(U256::new(0x388f7b0f632de8140fe337e62a37f356u128, 0x6500a99934c2231b6cb9fd7584b8e672u128)));
+        assert_eq!(y3, Field256::new(U256::new(0x388f7b0f632de8140fe337e62a37f356u128, 0x6500a99934c2231b6cb9fd7584b8e672u128), P));
         
         let p3 = p2 + p1;
-        let Point((x, y)) = p3;
-        assert_eq!(x, FiniteElement(U256::new(0xf9308a019258c31049344f85f89d5229u128, 0xb531c845836f99b08601f113bce036f9u128)));
-        assert_eq!(y, FiniteElement(U256::new(0x388f7b0f632de8140fe337e62a37f356u128, 0x6500a99934c2231b6cb9fd7584b8e672u128)));
+        let (x, y) = p3.unwrap();
+        assert_eq!(x, Field256::new(U256::new(0xf9308a019258c31049344f85f89d5229u128, 0xb531c845836f99b08601f113bce036f9u128), P));
+        assert_eq!(y, Field256::new(U256::new(0x388f7b0f632de8140fe337e62a37f356u128, 0x6500a99934c2231b6cb9fd7584b8e672u128), P));
     
         
         let p3 = p2 + p1;
         let Point((x, y)) = p3;
         assert_eq!(y*y, x*x*x + n_7);
     }
-    
+/*     
     #[test]
     fn point_mulitiple() {
         //assert_eq!(Point((FiniteElement(U256::new(0xcd5cd78e17f6faf3bd045f1b71ad9053u128, 0xc5f13f6d79a28ee1deff1e2c0852a771u128)), FiniteElement(U256::new(0x0c91336c9d739dc9840755404441f2beu128, 0xb596b7322202828d4d14b28c78acbee1u128)))), Point::g().multiple(U256::new(0x61c20033a14357ce57747697d7e80893u128, 0x46e76a5bfa360954cd0baa23f1d6e4f9u128)));
