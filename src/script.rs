@@ -131,6 +131,7 @@ const OP_NOP7: u8 = 0xb6;
 const OP_NOP8: u8 = 0xb7;
 const OP_NOP9: u8 = 0xb8;
 const OP_NOP10: u8 = 0xb9;
+type OpFunction = fn(&mut Vec<&[u8]>, &mut usize, script: &[u8]) -> Result<(), &'static str>;
 
 // Dummy cryptographic functions (replace with real implementations) 
 fn sha256ripemd160(data: &[u8]) -> Vec { 
@@ -140,58 +141,77 @@ fn sha256ripemd160(data: &[u8]) -> Vec {
     data.to_vec() 
 } 
 
+fn create_function_array() -> [OpFunction; 256] {
+    let default_function = |stack: &mut Vec<&[u8]>, script_cursor: &mut usize, script: &[u8]| -> Result<(), &'static str> {
+        Ok(())
+    };
+    let mut function_array: [OpFunction; 256] = [default_function; 256];
+
+    function_array[OP_DUP] = |stack: &mut Vec<&[u8]>, script_cursor: &mut usize, script: &[u8]| -> Result<(), &'static str> {
+        if let Some(item) = stack.last().cloned() {
+            stack.push(item); 
+        } else {
+            return Err("OP_DUP failed"); 
+        }
+        *script_cursor += 1;
+        Ok(())
+    };
+
+    function_array[OP_HASH160] = |stack: &mut Vec<&[u8]>, script_cursor: &mut usize, script: &[u8]| -> Result<(), &'static str> {
+        if let Some(item) = stack.pop() {
+            let hashed_item = sha256ripemd160(&item); 
+            stack.push(hashed_item); 
+        } else {
+            return Err("OP_HASH160 failed"); 
+        } 
+        *script_cursor += 1;
+        Ok(())
+    };
+
+    function_array[OP_EQUALVERIFY] = |stack: &mut Vec<&[u8]>, script_cursor: &mut usize, script: &[u8]| -> Result<(), &'static str> {
+        if let (Some(item1), Some(item2)) = (stack.pop(), stack.pop()) {
+            if item1 == item2 {
+                // Verification successful, do nothing 
+            } else {
+                return Err("OP_EQUALVERIFY failed"); 
+            } 
+        } else { 
+            return Err("OP_EQUALVERIFY failed"); 
+        } 
+        *script_cursor += 1;
+        Ok(())
+    };
+
+    for opcode in 1..0x4c {
+        function_array[opcode] = |stack: &mut Vec<&[u8]>, script_cursor: &mut usize, script: &[u8]| -> Result<(), &'static str> {
+            let data_length = opcode as usize; 
+            let data_start = *script_cursor + 1; 
+            let data_end = data_start + data_length; 
+            if data_end > script.len() { 
+                return Err("Variable-length data exceeds script length"); 
+            }
+            let data = script[data_start..data_end].to_vec(); 
+            stack.push(data); 
+            *script_cursor = data_end;
+            *script_cursor += 1;
+            Ok(())
+        };
+    }
+    function_array
+}
+
 // Bitcoin Script interpreter function with variable-length handling 
 fn run_script(script: &[u8]) -> Result<(), &'static str> {
-    let mut stack: Vec<u128> = Vec::new();
+    let op_function_array = create_function_array();
+    let mut stack: Vec<&[u8]> = Vec::new();
     let mut script_cursor = 0; 
     while script_cursor < script.len() { 
         let opcode = script[script_cursor]; 
-        match opcode {
-            OP_DUP => {
-                if let Some(item) = stack.last().cloned() {
-                    stack.push(item); 
-                } else {
-                    return Err("OP_DUP failed"); 
-                } 
-            } 
-            OP_HASH160 => {
-                if let Some(item) = stack.pop() {
-                    let hashed_item = sha256ripemd160(&item); 
-                    stack.push(hashed_item); 
-                } else {
-                    return Err("OP_HASH160 failed"); 
-                } 
-            } 
-            OP_EQUALVERIFY => {
-                if let (Some(item1), Some(item2)) = (stack.pop(), stack.pop()) {
-                    if item1 == item2 {
-                        // Verification successful, do nothing 
-                    } else {
-                        return Err("OP_EQUALVERIFY failed"); 
-                    } 
-                } else { 
-                    return Err("OP_EQUALVERIFY failed"); 
-                } 
-            } 
-            // Variable-length integer handling 
-            _ if opcode < 0x4c => { 
-                let data_length = opcode as usize; 
-                let data_start = script_cursor + 1; 
-                let data_end = data_start + data_length; 
-                if data_end > script.len() { 
-                    return Err("Variable-length data exceeds script length"); 
-                } 
-                let data = script[data_start..data_end].to_vec(); 
-                stack.push(data); 
-                script_cursor = data_end; 
-            }
-            _ => {
-                // Unsupported opcode return Err("Unsupported opcode"); 
-            } 
-        } 
-        script_cursor += 1; 
+        let result = op_function_array[opcode](&mut stack, &mut script_cursor, script);
+        if !result.is_ok() {
+            return result
+        }
     } 
-    // If the script execution reaches here without returning an error, it's considered successful
     Ok(()) 
 } 
 fn main() {
