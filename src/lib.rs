@@ -39,7 +39,7 @@ mod field256;
 mod field256_secure;
 mod point;
 mod point_secure;
-mod stack;
+// mod stack; // Disabled: uses Box which is incompatible with no_std
 mod stack_secure;
 mod script_secure;
 mod security_tests;

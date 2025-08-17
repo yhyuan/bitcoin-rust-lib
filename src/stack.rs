@@ -75,6 +75,16 @@ impl<T> Stack<T> {
     fn is_empty(&self) -> bool {
         self.list.head.is_none()
     }
+
+    fn peek(&self) -> Option<&T> {
+        if let Some(tail) = self.list.tail {
+            unsafe {
+                Some(&(*tail).value)
+            }
+        } else {
+            None
+        }
+    }
 }
 /* 
 fn main() {
