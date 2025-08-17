@@ -29,13 +29,20 @@
 
 #![no_std]
 //#![allow(clippy::unreadable_literal)]
+mod error;
+mod safe_conversions;
 mod ripemd160;
 mod sha256;
 mod u256;
 mod s256;
 mod field256;
+mod field256_secure;
 mod point;
+mod point_secure;
 mod stack;
+mod stack_secure;
+mod script_secure;
+mod security_tests;
 //mod hmac;
 use core::convert::{From, Into};
 use core::ops::{Not, Add, Sub, Mul, Div, Shr, Shl};
@@ -45,6 +52,7 @@ use sha256::HMAC;
 use ripemd160::Ripemd160;
 pub use u256::U256;
 pub use s256::S256;
+pub use error::{BitcoinError, Result};
 //use hmac::HMAC;
 //use core::default::Default;
 use core::mem::transmute;
