@@ -35,7 +35,7 @@ mod u256;
 mod s256;
 mod field256;
 mod point;
-
+mod stack;
 //mod hmac;
 use core::convert::{From, Into};
 use core::ops::{Not, Add, Sub, Mul, Div, Shr, Shl};
