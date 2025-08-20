@@ -29,22 +29,22 @@
 
 #![no_std]
 //#![allow(clippy::unreadable_literal)]
-mod ripemd160;
-mod sha256;
-mod u256;
-mod s256;
 mod field256;
 mod point;
+mod ripemd160;
+mod s256;
+mod sha256;
 mod stack;
+mod u256;
 //mod hmac;
-use core::convert::{From, Into};
-use core::ops::{Not, Add, Sub, Mul, Div, Shr, Shl};
 use core::cmp::Ordering;
+use core::convert::{From, Into};
+use core::ops::{Add, Div, Mul, Not, Shl, Shr, Sub};
+use ripemd160::Ripemd160;
+pub use s256::S256;
 use sha256::Sha256;
 use sha256::HMAC;
-use ripemd160::Ripemd160;
 pub use u256::U256;
-pub use s256::S256;
 //use hmac::HMAC;
 //use core::default::Default;
 use core::mem::transmute;

@@ -12,7 +12,10 @@ struct LinkedList<T> {
 
 impl<T> LinkedList<T> {
     fn new() -> Self {
-        LinkedList { head: None, tail: None }
+        LinkedList {
+            head: None,
+            tail: None,
+        }
     }
 
     fn push_back(&mut self, value: T) {
@@ -61,7 +64,9 @@ struct Stack<T> {
 
 impl<T> Stack<T> {
     fn new() -> Self {
-        Stack { list: LinkedList::new() }
+        Stack {
+            list: LinkedList::new(),
+        }
     }
 
     fn push(&mut self, value: T) {
@@ -76,7 +81,7 @@ impl<T> Stack<T> {
         self.list.head.is_none()
     }
 }
-/* 
+/*
 fn main() {
     let mut stack = Stack::new();
 
