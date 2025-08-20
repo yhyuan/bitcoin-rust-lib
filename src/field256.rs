@@ -3,11 +3,20 @@ use core::cmp::Ordering;
 use core::ops::{Add, Div, Mul, Sub};
 
 #[repr(C)]
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Field256 {
     pub u: U256,
     pub p: fn() -> U256,
 }
+
+impl PartialEq for Field256 {
+    fn eq(&self, other: &Self) -> bool {
+        // Only compare the value, not the function pointer
+        self.u == other.u
+    }
+}
+
+impl Eq for Field256 {}
 
 #[allow(dead_code)]
 impl Field256 {
