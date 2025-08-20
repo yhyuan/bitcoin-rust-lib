@@ -430,6 +430,19 @@ impl ScriptExecutor {
                 let (item_data, item_len) = self.alt_stack.pop()?;
                 self.stack.push(&item_data[..item_len])?;
             }
+            Opcode::OpAdd => {
+                // Pop two values from stack and add them
+                let (b_data, b_len) = self.stack.pop()?;
+                let (a_data, a_len) = self.stack.pop()?;
+                
+                // Convert to integers (simple implementation - just use first byte)
+                let a = if a_len > 0 { a_data[0] as u64 } else { 0 };
+                let b = if b_len > 0 { b_data[0] as u64 } else { 0 };
+                
+                let result = a + b;
+                let result_bytes = [result as u8];
+                self.stack.push(&result_bytes)?;
+            }
             _ => {
                 return Err(script_error!(InvalidOpcode));
             }

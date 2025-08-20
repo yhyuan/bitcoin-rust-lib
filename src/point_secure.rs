@@ -94,8 +94,7 @@ impl SecurePoint {
 
         // Process bits from most significant to least significant
         for i in (0..256).rev() {
-            let shifted = scalar >> i;
-            let bit = shifted.is_odd();
+            let bit = Self::get_bit(&scalar, i);
 
             if bit {
                 r0 = r0.checked_add(r1)?;
@@ -185,6 +184,19 @@ impl SecurePoint {
             y: y3,
             is_infinity: false,
         })
+    }
+
+    /// Safe bit extraction from U256
+    fn get_bit(value: &U256, index: usize) -> bool {
+        if index >= 256 {
+            return false;
+        }
+        
+        let bytes = value.to_be_bytes();
+        let byte_index = 31 - (index / 8);  // Big-endian: MSB is at index 0
+        let bit_index = index % 8;
+        
+        (bytes[byte_index] >> bit_index) & 1 == 1
     }
 
     /// Validate that point is on secp256k1 curve: y^2 = x^3 + 7

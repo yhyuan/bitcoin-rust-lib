@@ -7,9 +7,9 @@ use crate::error::{BitcoinError, MemoryError, Result, ScriptError};
 use crate::{memory_error, script_error};
 
 /// Maximum stack size to prevent memory exhaustion attacks
-const MAX_STACK_SIZE: usize = 1000;
+const MAX_STACK_SIZE: usize = 100;
 
-/// Maximum individual item size to prevent memory bombs
+/// Maximum individual item size to prevent memory bombs  
 const MAX_ITEM_SIZE: usize = 520;
 
 /// Maximum total memory usage for the stack
@@ -57,10 +57,7 @@ impl SecureStack {
             return Err(script_error!(ResourceLimitExceeded));
         }
 
-        // Validate data is not empty (Bitcoin Script requirement)
-        if data.is_empty() {
-            return Err(script_error!(InvalidScriptData));
-        }
+        // Empty data is valid in Bitcoin Script (e.g., OP_0 pushes empty data)
 
         // Copy data safely
         let index = self.count;
