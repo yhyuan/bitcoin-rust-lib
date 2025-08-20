@@ -160,8 +160,7 @@ impl Div for Field256 {
             u: other_u256.mod_inv(prime),
             p: self_p,
         };
-        let r = f1 * f2;
-        r
+        f1 * f2
     }
 }
 

@@ -1,7 +1,6 @@
 use crate::field256::Field256;
 use crate::u256::{P, U256};
 use core::cmp::Ordering;
-use core::mem::transmute;
 use core::ops::{Add, Shr};
 
 #[repr(C)]
@@ -63,9 +62,10 @@ impl Point {
         public_key[17..33].copy_from_slice(&x1.to_be_bytes());
         public_key[33..49].copy_from_slice(&y0.to_be_bytes());
         public_key[49..65].copy_from_slice(&y1.to_be_bytes());
-        unsafe { transmute::<_, [u8; 65]>(public_key) }
+        public_key
     }
 
+    #[allow(dead_code)]
     pub fn calculate_compressed_public_key(self) -> [u8; 33] {
         let Point((x, y)) = self;
         // let U256((x0, x1)) = x.u;
@@ -76,7 +76,7 @@ impl Point {
         public_key[0] = if y1 % 2 == 0u128 { 0x02u8 } else { 0x03u8 }; //main net
         public_key[1..17].copy_from_slice(&x0.to_be_bytes());
         public_key[17..33].copy_from_slice(&x1.to_be_bytes());
-        unsafe { transmute::<_, [u8; 33]>(public_key) }
+        public_key
     }
 }
 
@@ -84,9 +84,9 @@ impl Ord for Point {
     fn cmp(&self, other: &Point) -> Ordering {
         let Point((self_x, self_y)) = self;
         let Point((other_x, other_y)) = other;
-        match self_x.cmp(&other_x) {
+        match self_x.cmp(other_x) {
             Ordering::Less => Ordering::Less,
-            Ordering::Equal => self_y.cmp(&other_y),
+            Ordering::Equal => self_y.cmp(other_y),
             Ordering::Greater => Ordering::Greater,
         }
     }
@@ -131,7 +131,7 @@ impl Add for Point {
 mod tests {
     use crate::field256::Field256;
     use crate::point::Point;
-    use crate::u256::{N, P, U256};
+    use crate::u256::{P, U256};
 
     #[test]
     fn point_add() {

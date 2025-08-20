@@ -1,11 +1,14 @@
 // Simple stack implementation using fixed-size array for no_std compatibility
+#[allow(dead_code)]
 const STACK_SIZE: usize = 1000;
 
+#[allow(dead_code)]
 pub struct Stack<T: Copy + Default> {
     data: [T; STACK_SIZE],
     len: usize,
 }
 
+#[allow(dead_code)]
 impl<T: Copy + Default> Stack<T> {
     pub fn new() -> Self {
         Stack {

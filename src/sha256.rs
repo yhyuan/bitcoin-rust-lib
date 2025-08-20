@@ -128,7 +128,7 @@ impl Sha256 {
         let remain = len % 64;
         for _ in 0..data_blocks {
             Self::update_state(&mut self.state, unsafe {
-                transmute::<_, (&[u8; 64], usize)>(&data[offset..offset + 64]).0
+                transmute::<&[u8], (&[u8; 64], usize)>(&data[offset..offset + 64]).0
             });
             offset += 64;
         }
@@ -173,9 +173,9 @@ impl Sha256 {
     }*/
 }
 
-pub struct HMAC;
+pub struct Hmac;
 
-impl HMAC {
+impl Hmac {
     /// Compute HMAC-SHA256(`input`, `k`)
     pub fn mac(input: &[u8], k: &[u8]) -> [u8; 32] {
         let mut key = [0u8; 64];
@@ -183,11 +183,11 @@ impl HMAC {
             let hash_key = Sha256::digest(k);
             key[0..32].copy_from_slice(&hash_key[0..32]);
         } else {
-            key[0..k.len()].copy_from_slice(&k[..]);
+            key[0..k.len()].copy_from_slice(k);
         }
         let mut i_key_pad = [0x36; 64];
         for i in 0..64 {
-            i_key_pad[i] = i_key_pad[i] ^ key[i];
+            i_key_pad[i] ^= key[i];
         }
         let mut sha256 = Sha256::default();
         sha256.update(&i_key_pad);
@@ -195,7 +195,7 @@ impl HMAC {
 
         let mut o_key_pad = [0x5c; 64];
         for i in 0..64 {
-            o_key_pad[i] = o_key_pad[i] ^ key[i];
+            o_key_pad[i] ^= key[i];
         }
         let mut sha256_2 = Sha256::default();
         sha256_2.update(&o_key_pad);
@@ -206,8 +206,7 @@ impl HMAC {
 
 #[cfg(test)]
 mod tests {
-    use Sha256;
-    use HMAC;
+    use super::{Sha256, Hmac};
 
     #[test]
     fn hash_256() {
@@ -645,7 +644,7 @@ mod tests {
 
     #[test]
     fn hmac_mac() {
-        let h = HMAC::mac(&[], &[0u8; 32]);
+        let h = Hmac::mac(&[], &[0u8; 32]);
         assert_eq!(
             &h[..],
             &[
@@ -654,7 +653,7 @@ mod tests {
             ]
         );
 
-        let h = HMAC::mac(&[42u8; 69], &[]);
+        let h = Hmac::mac(&[42u8; 69], &[]);
         assert_eq!(
             &h[..],
             &[
@@ -663,7 +662,7 @@ mod tests {
             ]
         );
 
-        let h = HMAC::mac(&[69u8; 250], &[42u8; 50]);
+        let h = Hmac::mac(&[69u8; 250], &[42u8; 50]);
         assert_eq!(
             &h[..],
             &[

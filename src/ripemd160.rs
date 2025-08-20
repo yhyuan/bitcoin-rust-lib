@@ -35,7 +35,7 @@ impl Ripemd160 {
             msg[word_offset + 3],
             msg[word_offset + 2],
             msg[word_offset + 1],
-            msg[word_offset + 0],
+            msg[word_offset],
         ])
     }
     //f
@@ -181,7 +181,7 @@ impl Ripemd160 {
         let remain = len % 64;
         for _ in 0..data_blocks {
             Self::update_state(&mut self.state, unsafe {
-                transmute::<_, (&[u8; 64], usize)>(&data[offset..offset + 64]).0
+                transmute::<&[u8], (&[u8; 64], usize)>(&data[offset..offset + 64]).0
             });
             offset += 64;
         }

@@ -1,6 +1,5 @@
 use core::cmp::Ordering;
-use core::convert::{From, Into};
-use core::mem::transmute;
+use core::convert::From;
 use core::ops::{Add, Div, Mul, Not, Shl, Shr, Sub};
 
 use crate::field256::Field256;
@@ -8,7 +7,7 @@ use crate::point::Point;
 use crate::ripemd160::Ripemd160;
 use crate::s256::S256;
 use crate::sha256::Sha256;
-use crate::sha256::HMAC;
+use crate::sha256::Hmac;
 
 pub const N: fn() -> U256 = || -> U256 {
     U256((
@@ -70,7 +69,7 @@ impl U256 {
     }
 
     pub fn max_value() -> U256 {
-        U256((u128::max_value(), u128::max_value()))
+        U256((u128::MAX, u128::MAX))
     }
 
     pub fn multiple_u128(x: &u128, y: &u128) -> U256 {
@@ -81,8 +80,8 @@ impl U256 {
                 x & 0x0000_0000_0000_0000_FFFF_FFFF_FFFF_FFFF_u128,
             )
         };
-        let (x0, x1) = divide_u128(&x);
-        let (y0, y1) = divide_u128(&y);
+        let (x0, x1) = divide_u128(x);
+        let (y0, y1) = divide_u128(y);
         let (v, o) = (x0 * y1).overflowing_add(x1 * y0);
         let (v0, v1) = divide_u128(&v); //6, 2
         let v0_1 = if o {
@@ -166,7 +165,7 @@ impl U256 {
             //let t1 = b0 * a;
             let (y1, s) = y1.overflowing_add(b0 * a);
             if s {
-                y0 = y0 + 1;
+                y0 += 1;
             }
             ((y0, y1), remainder as usize)
         };
@@ -205,14 +204,14 @@ impl U256 {
             }
             base58[i - 1] = BTC_ALPHA[remainder];
             x = divider;
-            i = i - 1;
+            i -= 1;
         }
         // 66 - i is the size of result.
         for _ in 0..num_of_zeros {
             base58[i - 1] = BTC_ALPHA[0];
-            i = i - 1;
+            i -= 1;
         }
-        unsafe { transmute::<_, [u8; 66]>(base58) }
+        base58
     }
 
     pub fn calculate_p2pkh_address(self, is_testnet: bool) -> [u8; 34] {
@@ -223,9 +222,9 @@ impl U256 {
         ripemd160[0] = if is_testnet { 0x6fu8 } else { 0x00u8 }; //main net. test net 0x6fu8
         ripemd160[1..21].copy_from_slice(&result);
         let mut num_of_zeros = 0u8;
-        for i in 0..21 {
-            if ripemd160[i] == 0x00u8 {
-                num_of_zeros = num_of_zeros + 1;
+        for &item in &ripemd160 {
+            if item == 0x00u8 {
+                num_of_zeros += 1;
             } else {
                 break;
             }
@@ -281,16 +280,16 @@ impl U256 {
         data[32] = 0x00;
         data[33..65].copy_from_slice(&secret_bytes[0..32]);
         data[65..97].copy_from_slice(&z_bytes[0..32]);
-        k = HMAC::mac(&data, &k);
-        v = HMAC::mac(&v, &k);
+        k = Hmac::mac(&data, &k);
+        v = Hmac::mac(&v, &k);
         data[0..32].copy_from_slice(&v[0..32]);
         data[32] = 0x01;
         data[33..65].copy_from_slice(&secret_bytes[0..32]);
         data[65..97].copy_from_slice(&z_bytes[0..32]);
-        k = HMAC::mac(&data, &k);
-        v = HMAC::mac(&v, &k);
+        k = Hmac::mac(&data, &k);
+        v = Hmac::mac(&v, &k);
         loop {
-            v = HMAC::mac(&v, &k);
+            v = Hmac::mac(&v, &k);
             let candidate = U256::from_be_bytes(v);
             if candidate >= U256::one() && candidate < N() {
                 return candidate;
@@ -298,8 +297,8 @@ impl U256 {
             let mut data_2 = [0u8; 33];
             data_2[0..32].copy_from_slice(&v[0..32]);
             data_2[32] = 0x00;
-            k = HMAC::mac(&data_2, &k);
-            v = HMAC::mac(&v, &k);
+            k = Hmac::mac(&data_2, &k);
+            v = Hmac::mac(&v, &k);
         }
     }
 
@@ -310,9 +309,9 @@ impl U256 {
         a[0..16].copy_from_slice(&x0.to_be_bytes());
         a[16..32].copy_from_slice(&x1.to_be_bytes());
         let mut num_of_zeros: usize = 0;
-        for i in 0..32 {
-            if a[i] == 0x00u8 {
-                num_of_zeros = num_of_zeros + 1;
+        for &item in &a {
+            if item == 0x00u8 {
+                num_of_zeros += 1;
             } else {
                 break;
             }
@@ -328,11 +327,11 @@ impl U256 {
         let mut i: usize = 2;
         if larger {
             b[i] = 0x00u8;
-            i = i + 1;
+            i += 1;
         }
-        for j in num_of_zeros..32 {
-            b[i] = a[j];
-            i = i + 1;
+        for item in a.iter().skip(num_of_zeros) {
+            b[i] = *item;
+            i += 1;
         }
         (b, size + 2)
     }
@@ -401,9 +400,9 @@ impl From<u128> for U256 {
     }
 }
 
-impl Into<u128> for U256 {
-    fn into(self) -> u128 {
-        let U256((self_upper, self_lower)) = self;
+impl From<U256> for u128 {
+    fn from(val: U256) -> Self {
+        let U256((self_upper, self_lower)) = val;
         assert!(self_upper == 0u128);
         self_lower
     }
@@ -423,7 +422,7 @@ impl Add for U256 {
 
     fn add(self, other: U256) -> U256 {
         let (v, o) = self.overflowing_add(other);
-        assert!(o == false);
+        assert!(!o);
         v
     }
 }
@@ -432,19 +431,13 @@ impl Ord for U256 {
     fn cmp(&self, other: &U256) -> Ordering {
         let U256((self_upper, self_lower)) = self;
         let U256((other_upper, other_lower)) = other;
-        let compare_u128 = |x: &u128, y: &u128| -> Ordering {
-            if x == y {
-                Ordering::Equal
-            } else if x > y {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            }
+        let compare_u128 = |x: u128, y: u128| -> Ordering {
+            x.cmp(&y)
         };
         if self_upper == other_upper {
-            compare_u128(&self_lower, &other_lower)
+            compare_u128(*self_lower, *other_lower)
         } else {
-            compare_u128(&self_upper, &other_upper)
+            compare_u128(*self_upper, *other_upper)
         }
     }
 }
@@ -471,7 +464,7 @@ impl Sub for U256 {
             } else {
                 U256((
                     self_upper - other_upper - 1,
-                    self_lower + (u128::max_value() - other_lower) + 1,
+                    self_lower + (u128::MAX - other_lower) + 1,
                 ))
             }
         }
@@ -504,8 +497,8 @@ impl Div for U256 {
     fn div(self, other: U256) -> (U256, U256) {
         assert!(other != U256::zero());
         let divide_by_max = |x: &u128| -> (u128, u128) {
-            let a = u128::max_value() / x;
-            let b = u128::max_value() % x;
+            let a = u128::MAX / x;
+            let b = u128::MAX % x;
             if b == x - 1 {
                 (a + 1, 0)
             } else {
@@ -516,7 +509,7 @@ impl Div for U256 {
             Ordering::Less => (U256::zero(), self),
             Ordering::Equal => (U256::one(), U256::zero()),
             Ordering::Greater => match (self, other) {
-                (U256((x0, x1)), U256((0u128, y1))) if y1 == 1u128 => {
+                (U256((x0, x1)), U256((0u128, 1u128))) => {
                     (U256((x0, x1)), U256::zero())
                 }
                 (U256((0u128, x1)), U256((0u128, y1))) => {
@@ -595,8 +588,8 @@ mod tests {
     #[test]
     fn u256_max_value() {
         let (upper, lower) = U256::max_value().unwrap();
-        assert_eq!(upper, u128::max_value());
-        assert_eq!(lower, u128::max_value());
+        assert_eq!(upper, u128::MAX);
+        assert_eq!(lower, u128::MAX);
     }
 
     #[test]
@@ -1263,33 +1256,33 @@ mod tests {
         let o = r.1;
         assert_eq!(upper, 0u128);
         assert_eq!(lower, 2u128);
-        assert_eq!(o, false);
+        assert!(!o);
 
-        // let (U256((upper, lower)), o) = u.overflowing_add(U256((u128::max_value(), u128::max_value())));
-        let r = u.overflowing_add(U256::new(u128::max_value(), u128::max_value()));
+        // let (U256((upper, lower)), o) = u.overflowing_add(U256((u128::MAX, u128::MAX)));
+        let r = u.overflowing_add(U256::new(u128::MAX, u128::MAX));
         let (upper, lower) = r.0.unwrap();
         let o = r.1;
         assert_eq!(upper, 0u128);
         assert_eq!(lower, 0u128);
-        assert_eq!(o, true);
+        assert!(o);
 
-        let u = U256::new(u128::max_value(), 0u128);
-        // let (U256((upper, lower)), o) = u.overflowing_add(U256((u128::max_value(), 1u128)));
-        let r = u.overflowing_add(U256::new(u128::max_value(), 1u128));
+        let u = U256::new(u128::MAX, 0u128);
+        // let (U256((upper, lower)), o) = u.overflowing_add(U256((u128::MAX, 1u128)));
+        let r = u.overflowing_add(U256::new(u128::MAX, 1u128));
         let (upper, lower) = r.0.unwrap();
         let o = r.1;
-        assert_eq!(upper, u128::max_value() - 1);
+        assert_eq!(upper, u128::MAX - 1);
         assert_eq!(lower, 1u128);
-        assert_eq!(o, true);
+        assert!(o);
 
-        let u = U256::new(0u128, u128::max_value());
-        // let (U256((upper, lower)), o) = u.overflowing_add(U256((1u128, u128::max_value())));
-        let r = u.overflowing_add(U256::new(1u128, u128::max_value()));
+        let u = U256::new(0u128, u128::MAX);
+        // let (U256((upper, lower)), o) = u.overflowing_add(U256((1u128, u128::MAX)));
+        let r = u.overflowing_add(U256::new(1u128, u128::MAX));
         let (upper, lower) = r.0.unwrap();
         let o = r.1;
         assert_eq!(upper, 2u128);
-        assert_eq!(lower, u128::max_value() - 1);
-        assert_eq!(o, false);
+        assert_eq!(lower, u128::MAX - 1);
+        assert!(!o);
     }
 
     #[test]
@@ -1307,8 +1300,8 @@ mod tests {
     #[test]
     fn u256_not() {
         let (upper, lower) = (!U256::zero()).unwrap();
-        assert_eq!(upper, u128::max_value());
-        assert_eq!(lower, u128::max_value());
+        assert_eq!(upper, u128::MAX);
+        assert_eq!(lower, u128::MAX);
     }
 
     #[test]
@@ -1321,13 +1314,13 @@ mod tests {
     #[test]
     fn u256_order() {
         let compare = U256::one() == U256::one();
-        assert_eq!(compare, true);
+        assert!(compare);
         let compare = U256::one() > U256::zero();
-        assert_eq!(compare, true);
+        assert!(compare);
         let compare = U256::zero() < U256::one();
-        assert_eq!(compare, true);
+        assert!(compare);
         let compare = U256::one() < U256::max_value();
-        assert_eq!(compare, true);
+        assert!(compare);
     }
 
     #[test]
@@ -1341,8 +1334,8 @@ mod tests {
         assert_eq!(lower, 1u128);
 
         let (upper, lower) =
-            (U256::new(u128::max_value(), 0u128) - U256::new(0u128, u128::max_value())).unwrap();
-        assert_eq!(upper, u128::max_value() - 1);
+            (U256::new(u128::MAX, 0u128) - U256::new(0u128, u128::MAX)).unwrap();
+        assert_eq!(upper, u128::MAX - 1);
         assert_eq!(lower, 1u128);
     }
 
@@ -1363,8 +1356,8 @@ mod tests {
         let (upper, lower) = v.unwrap();
         assert_eq!(upper0, 0u128);
         assert_eq!(lower0, 0u128);
-        assert_eq!(upper, u128::max_value());
-        assert_eq!(lower, u128::max_value());
+        assert_eq!(upper, u128::MAX);
+        assert_eq!(lower, u128::MAX);
 
         // let (U256((upper0, lower0)), U256((upper, lower))) = U256::zero() * U256::max_value();
         let (v0, v) = U256::zero() * U256::max_value();
@@ -1381,15 +1374,15 @@ mod tests {
         let (upper, lower) = v.unwrap();
         assert_eq!(upper0, 0u128);
         assert_eq!(lower0, 1u128);
-        assert_eq!(upper, u128::max_value());
-        assert_eq!(lower, u128::max_value() - 1);
+        assert_eq!(upper, u128::MAX);
+        assert_eq!(lower, u128::MAX - 1);
 
         // let (U256((upper0, lower0)), U256((upper, lower))) = U256::max_value() * U256::max_value();
         let (v0, v) = U256::max_value() * U256::max_value();
         let (upper0, lower0) = v0.unwrap();
         let (upper, lower) = v.unwrap();
-        assert_eq!(upper0, u128::max_value());
-        assert_eq!(lower0, u128::max_value() - 1);
+        assert_eq!(upper0, u128::MAX);
+        assert_eq!(lower0, u128::MAX - 1);
         assert_eq!(upper, 0u128);
         assert_eq!(lower, 1u128);
     }
@@ -1404,7 +1397,7 @@ mod tests {
         assert_eq!(r, U256::one());
         assert_eq!(
             d,
-            U256::new(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFu128, u128::max_value())
+            U256::new(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFu128, u128::MAX)
         );
 
         let (d, r) = U256::max_value() / (U256::one() + U256::one() + U256::one());
@@ -1428,7 +1421,7 @@ mod tests {
         assert_eq!(d, U256::one() + U256::one() + U256::one());
 
         let (d, r) = U256::max_value()
-            / U256::new(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFu128, u128::max_value());
+            / U256::new(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFu128, u128::MAX);
         assert_eq!(r, U256::one());
         assert_eq!(d, U256::one() + U256::one());
     }
@@ -6273,12 +6266,12 @@ mod tests {
     fn u256_shl() {
         let u = U256::max_value();
         let (x0, x1) = (u << 1usize).unwrap();
-        assert_eq!(x0, u128::max_value());
-        assert_eq!(x1, u128::max_value() - 1);
+        assert_eq!(x0, u128::MAX);
+        assert_eq!(x1, u128::MAX - 1);
 
         let u = U256::max_value();
         let (x0, x1) = (u << 128usize).unwrap();
-        assert_eq!(x0, u128::max_value());
+        assert_eq!(x0, u128::MAX);
         assert_eq!(x1, 0u128);
     }
 
@@ -6287,12 +6280,12 @@ mod tests {
         let u = U256::max_value();
         let (x0, x1) = (u >> 1usize).unwrap();
         assert_eq!(x0, 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFu128);
-        assert_eq!(x1, u128::max_value());
+        assert_eq!(x1, u128::MAX);
 
         let u = U256::max_value();
         let (x0, x1) = (u >> 128usize).unwrap();
         assert_eq!(x0, 0u128);
-        assert_eq!(x1, u128::max_value());
+        assert_eq!(x1, u128::MAX);
     }
 
     #[test]
