@@ -3,35 +3,38 @@
 //! This module provides a memory-safe Script interpreter with resource limits,
 //! bounds checking, and protection against various attack vectors.
 
-#![no_std]
-
-use crate::stack_secure::{SecureStack, AltStack};
-use crate::error::{BitcoinError, Result, ScriptError, InputError};
-use crate::{script_error, input_error};
-use crate::sha256::Sha256;
+use crate::error::{BitcoinError, InputError, Result, ScriptError};
 use crate::ripemd160::Ripemd160;
-use crate::safe_conversions::{check_bounds, check_slice_bounds};
+use crate::safe_conversions::check_slice_bounds;
+use crate::sha256::Sha256;
+use crate::stack_secure::{AltStack, SecureStack};
+use crate::{input_error, script_error};
 
 /// Maximum script size to prevent script bomb attacks
+#[allow(dead_code)]
 const MAX_SCRIPT_SIZE: usize = 10000;
 
 /// Maximum number of operations to prevent infinite loops
+#[allow(dead_code)]
 const MAX_OPS: usize = 201;
 
 /// Maximum number of signature checks to prevent CPU exhaustion
+#[allow(dead_code)]
 const MAX_SIG_CHECKS: usize = 20;
 
 /// Maximum push data size for single operation
+#[allow(dead_code)]
 const MAX_PUSH_SIZE: usize = 520;
 
 /// Bitcoin Script opcodes with security validation
+#[allow(dead_code)]
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
     // Constants
     Op0 = 0x00,
     OpPushData1 = 0x4c,
-    OpPushData2 = 0x4d, 
+    OpPushData2 = 0x4d,
     OpPushData4 = 0x4e,
     Op1Negate = 0x4f,
     Op1 = 0x51,
@@ -124,9 +127,10 @@ pub enum Opcode {
     OpCheckSequenceVerify = 0xb2,
 
     // Invalid
-    OpInvalidOpcode = 0xff,
+    OpInvalid = 0xff,
 }
 
+#[allow(dead_code)]
 impl Opcode {
     /// Convert byte to opcode with validation
     pub fn from_byte(byte: u8) -> Result<Self> {
@@ -218,6 +222,7 @@ impl Opcode {
 }
 
 /// Secure script execution context with resource tracking
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct ScriptExecutor {
     /// Main execution stack
@@ -237,6 +242,7 @@ pub struct ScriptExecutor {
     code_separator_pos: Option<usize>,
 }
 
+#[allow(dead_code)]
 impl ScriptExecutor {
     /// Create new secure script executor
     pub fn new() -> Self {
@@ -260,7 +266,7 @@ impl ScriptExecutor {
         }
 
         self.pc = 0;
-        
+
         while self.pc < script.len() {
             // Check operation count limit
             if self.op_count >= MAX_OPS {
@@ -268,9 +274,9 @@ impl ScriptExecutor {
             }
 
             let opcode_byte = script[self.pc];
-            
+
             // Handle push data operations (1-75 bytes)
-            if opcode_byte >= 1 && opcode_byte <= 75 {
+            if (1..=75).contains(&opcode_byte) {
                 self.execute_push_data(script, opcode_byte as usize)?;
             } else {
                 let opcode = Opcode::from_byte(opcode_byte)?;
@@ -302,116 +308,128 @@ impl ScriptExecutor {
 
         let start = self.pc + 1;
         let end = start + size;
-        
+
         check_slice_bounds(start, end, script.len())?;
-        
+
         let data = &script[start..end];
         self.stack.push(data)?;
-        
+
         self.pc = end;
         Ok(())
     }
 
     /// Execute specific opcode with security validation
-    fn execute_opcode(&mut self, script: &[u8], opcode: Opcode) -> Result<()> {
+    fn execute_opcode(&mut self, _script: &[u8], opcode: Opcode) -> Result<()> {
         match opcode {
             Opcode::Op0 => {
                 self.stack.push(&[])?;
-            },
+            }
             Opcode::Op1Negate => {
                 self.stack.push(&[0x81])?; // -1 in Bitcoin Script format
-            },
-            Opcode::Op1 | Opcode::Op2 | Opcode::Op3 | Opcode::Op4 | 
-            Opcode::Op5 | Opcode::Op6 | Opcode::Op7 | Opcode::Op8 |
-            Opcode::Op9 | Opcode::Op10 | Opcode::Op11 | Opcode::Op12 |
-            Opcode::Op13 | Opcode::Op14 | Opcode::Op15 | Opcode::Op16 => {
+            }
+            Opcode::Op1
+            | Opcode::Op2
+            | Opcode::Op3
+            | Opcode::Op4
+            | Opcode::Op5
+            | Opcode::Op6
+            | Opcode::Op7
+            | Opcode::Op8
+            | Opcode::Op9
+            | Opcode::Op10
+            | Opcode::Op11
+            | Opcode::Op12
+            | Opcode::Op13
+            | Opcode::Op14
+            | Opcode::Op15
+            | Opcode::Op16 => {
                 let value = (opcode as u8) - 0x50;
                 self.stack.push(&[value])?;
-            },
+            }
             Opcode::OpNop => {
                 // No operation
-            },
+            }
             Opcode::OpDup => {
                 self.stack.dup()?;
-            },
+            }
             Opcode::OpDrop => {
                 self.stack.drop()?;
-            },
+            }
             Opcode::OpSwap => {
                 self.stack.swap()?;
-            },
+            }
             Opcode::OpRot => {
                 self.stack.rot()?;
-            },
+            }
             Opcode::Op2Drop => {
                 self.stack.drop()?;
                 self.stack.drop()?;
-            },
+            }
             Opcode::Op2Dup => {
                 self.stack.dup_at_depth(1)?;
                 self.stack.dup_at_depth(1)?;
-            },
+            }
             Opcode::OpEqual => {
                 let (a_data, a_len) = self.stack.pop()?;
                 let (b_data, b_len) = self.stack.pop()?;
-                let result = if a_len == b_len && a_data[..a_len] == b_data[..b_len] { 
-                    [1u8] 
-                } else { 
-                    [0u8] 
+                let result = if a_len == b_len && a_data[..a_len] == b_data[..b_len] {
+                    [1u8]
+                } else {
+                    [0u8]
                 };
                 self.stack.push(&result)?;
-            },
+            }
             Opcode::OpEqualVerify => {
                 let (a_data, a_len) = self.stack.pop()?;
                 let (b_data, b_len) = self.stack.pop()?;
                 if a_len != b_len || a_data[..a_len] != b_data[..b_len] {
                     return Err(script_error!(ExecutionFailed));
                 }
-            },
+            }
             Opcode::OpSha256 => {
                 let (data_arr, data_len) = self.stack.pop()?;
                 let data = &data_arr[..data_len];
                 let hash = Sha256::digest(data);
                 self.stack.push(&hash)?;
-            },
+            }
             Opcode::OpRipemd160 => {
                 let (data_arr, data_len) = self.stack.pop()?;
                 let data = &data_arr[..data_len];
                 let hash = Ripemd160::digest(data);
                 self.stack.push(&hash)?;
-            },
+            }
             Opcode::OpHash160 => {
                 let (data_arr, data_len) = self.stack.pop()?;
                 let data = &data_arr[..data_len];
                 let sha_hash = Sha256::digest(data);
                 let ripemd_hash = Ripemd160::digest(&sha_hash);
                 self.stack.push(&ripemd_hash)?;
-            },
+            }
             Opcode::OpHash256 => {
                 let (data_arr, data_len) = self.stack.pop()?;
                 let data = &data_arr[..data_len];
                 let hash1 = Sha256::digest(data);
                 let hash2 = Sha256::digest(&hash1);
                 self.stack.push(&hash2)?;
-            },
+            }
             Opcode::OpVerify => {
                 let (data_arr, data_len) = self.stack.pop()?;
                 let value = &data_arr[..data_len];
                 if !self.is_true(value) {
                     return Err(script_error!(ExecutionFailed));
                 }
-            },
+            }
             Opcode::OpReturn => {
                 return Err(script_error!(ExecutionFailed));
-            },
+            }
             Opcode::OpToAltStack => {
                 let (item_data, item_len) = self.stack.pop()?;
                 self.alt_stack.push(&item_data[..item_len])?;
-            },
+            }
             Opcode::OpFromAltStack => {
                 let (item_data, item_len) = self.alt_stack.pop()?;
                 self.stack.push(&item_data[..item_len])?;
-            },
+            }
             _ => {
                 return Err(script_error!(InvalidOpcode));
             }
@@ -426,19 +444,19 @@ impl ScriptExecutor {
         if value.is_empty() {
             return false;
         }
-        
+
         // Check for negative zero
         if value.len() == 1 && value[0] == 0x80 {
             return false;
         }
-        
+
         // Check if all bytes are zero
         for &byte in value {
             if byte != 0 {
                 return true;
             }
         }
-        
+
         false
     }
 
@@ -473,13 +491,13 @@ impl ScriptExecutor {
             }
 
             let opcode_byte = script[pc];
-            
-            if opcode_byte >= 1 && opcode_byte <= 75 {
+
+            if (1..=75).contains(&opcode_byte) {
                 let size = opcode_byte as usize;
                 if size > MAX_PUSH_SIZE {
                     return Err(script_error!(InvalidScriptData));
                 }
-                
+
                 let end = pc + 1 + size;
                 if end > script.len() {
                     return Err(input_error!(InvalidLength));
@@ -510,7 +528,7 @@ mod tests {
     #[test]
     fn test_simple_script_execution() {
         let mut executor = ScriptExecutor::new();
-        
+
         // Push 1, push 1, OP_ADD
         let script = [0x51, 0x51, 0x93];
         let result = executor.execute(&script);
@@ -520,7 +538,7 @@ mod tests {
     #[test]
     fn test_script_size_limit() {
         let mut executor = ScriptExecutor::new();
-        
+
         // Create oversized script
         let script = [0x61u8; MAX_SCRIPT_SIZE + 1]; // NOP operations
         let result = executor.execute(&script);
@@ -530,7 +548,7 @@ mod tests {
     #[test]
     fn test_operation_count_limit() {
         let mut executor = ScriptExecutor::new();
-        
+
         // Create script with too many operations
         let script = [0x61u8; MAX_OPS + 1]; // NOP operations
         let result = executor.execute(&script);
@@ -540,7 +558,7 @@ mod tests {
     #[test]
     fn test_push_data_validation() {
         let mut executor = ScriptExecutor::new();
-        
+
         // Try to push more data than script contains
         let script = [0x10]; // Push 16 bytes, but script only has 1 byte
         let result = executor.execute(&script);
@@ -550,7 +568,7 @@ mod tests {
     #[test]
     fn test_stack_operations() {
         let mut executor = ScriptExecutor::new();
-        
+
         // Push two values and swap them
         let script = [0x51, 0x52, 0x7c]; // OP_1, OP_2, OP_SWAP
         assert!(executor.execute(&script).is_ok());
@@ -559,7 +577,7 @@ mod tests {
     #[test]
     fn test_hash_operations() {
         let mut executor = ScriptExecutor::new();
-        
+
         // Push data and hash it
         let script = [0x01, 0x42, 0xa8]; // Push byte 0x42, OP_SHA256
         assert!(executor.execute(&script).is_ok());

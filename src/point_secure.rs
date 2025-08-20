@@ -3,15 +3,13 @@
 //! This module provides cryptographically secure point operations with proper
 //! input validation, curve checks, and memory-safe conversions.
 
-#![no_std]
-
-use core::ops::{Add, Shr};
-use core::cmp::Ordering;
+use crate::error::{BitcoinError, CryptographicError, InputError, Result};
 use crate::field256_secure::Field256;
-use crate::u256::{U256, P};
-use crate::error::{BitcoinError, Result, CryptographicError, InputError};
+use crate::safe_conversions::slice_to_array;
+use crate::u256::{P, U256};
 use crate::{crypto_error, input_error};
-use crate::safe_conversions::{slice_to_array, secure_zero};
+use core::cmp::Ordering;
+use core::ops::Add;
 
 /// Represents a point on the secp256k1 elliptic curve
 #[repr(C)]
@@ -23,25 +21,34 @@ pub struct SecurePoint {
     is_infinity: bool,
 }
 
+#[allow(dead_code)]
 impl SecurePoint {
     /// Create a new point with validation
     pub fn new(x: Field256, y: Field256) -> Result<Self> {
-        let point = SecurePoint { x, y, is_infinity: false };
+        let point = SecurePoint {
+            x,
+            y,
+            is_infinity: false,
+        };
         point.validate_on_curve()?;
         Ok(point)
     }
 
     /// Create point without validation (for internal use only)
     pub fn new_unchecked(x: Field256, y: Field256) -> Self {
-        SecurePoint { x, y, is_infinity: false }
+        SecurePoint {
+            x,
+            y,
+            is_infinity: false,
+        }
     }
 
     /// Create point at infinity
     pub fn infinity() -> Self {
-        SecurePoint { 
-            x: Field256::zero(P), 
-            y: Field256::zero(P), 
-            is_infinity: true 
+        SecurePoint {
+            x: Field256::zero(P),
+            y: Field256::zero(P),
+            is_infinity: true,
         }
     }
 
@@ -61,17 +68,17 @@ impl SecurePoint {
     /// Get the secp256k1 generator point with validation
     pub fn generator() -> Result<Self> {
         let x_val = U256::new(
-            0x79be667ef9dcbbac55a06295ce870b07u128, 
-            0x029bfcdb2dce28d959f2815b16f81798u128
+            0x79be667ef9dcbbac55a06295ce870b07u128,
+            0x029bfcdb2dce28d959f2815b16f81798u128,
         );
         let y_val = U256::new(
-            0x483ada7726a3c4655da4fbfc0e1108a8u128, 
-            0xfd17b448a68554199c47d08ffb10d4b8u128
+            0x483ada7726a3c4655da4fbfc0e1108a8u128,
+            0xfd17b448a68554199c47d08ffb10d4b8u128,
         );
-        
+
         let x_field = Field256::new(x_val, P)?;
         let y_field = Field256::new(y_val, P)?;
-        
+
         Self::new(x_field, y_field)
     }
 
@@ -84,12 +91,12 @@ impl SecurePoint {
         // Use Montgomery ladder for constant-time scalar multiplication
         let mut r0 = Self::infinity();
         let mut r1 = *self;
-        
+
         // Process bits from most significant to least significant
         for i in (0..256).rev() {
             let shifted = scalar >> i;
             let bit = shifted.is_odd();
-            
+
             if bit {
                 r0 = r0.checked_add(r1)?;
                 r1 = r1.double()?;
@@ -98,7 +105,7 @@ impl SecurePoint {
                 r0 = r0.double()?;
             }
         }
-        
+
         Ok(r0)
     }
 
@@ -116,7 +123,7 @@ impl SecurePoint {
         // s = (3 * x^2) / (2 * y)
         let three = Field256::new_unchecked(U256::from(3u128), P);
         let two = Field256::new_unchecked(U256::from(2u128), P);
-        
+
         let x_squared = self.x.checked_mul(self.x)?;
         let numerator = three.checked_mul(x_squared)?;
         let denominator = two.checked_mul(self.y)?;
@@ -132,7 +139,11 @@ impl SecurePoint {
         let slope_diff = slope.checked_mul(x_diff)?;
         let y3 = slope_diff.checked_sub(self.y)?;
 
-        Ok(SecurePoint { x: x3, y: y3, is_infinity: false })
+        Ok(SecurePoint {
+            x: x3,
+            y: y3,
+            is_infinity: false,
+        })
     }
 
     /// Secure point addition with validation
@@ -169,7 +180,11 @@ impl SecurePoint {
         let slope_diff = slope.checked_mul(x_diff_result)?;
         let y3 = slope_diff.checked_sub(self.y)?;
 
-        Ok(SecurePoint { x: x3, y: y3, is_infinity: false })
+        Ok(SecurePoint {
+            x: x3,
+            y: y3,
+            is_infinity: false,
+        })
     }
 
     /// Validate that point is on secp256k1 curve: y^2 = x^3 + 7
@@ -179,10 +194,10 @@ impl SecurePoint {
         }
 
         let seven = Field256::new_unchecked(U256::from(7u128), P);
-        
+
         // Calculate y^2
         let y_squared = self.y.checked_mul(self.y)?;
-        
+
         // Calculate x^3 + 7
         let x_squared = self.x.checked_mul(self.x)?;
         let x_cubed = x_squared.checked_mul(self.x)?;
@@ -196,7 +211,7 @@ impl SecurePoint {
     }
 
     /// Generate secure uncompressed public key (65 bytes)
-    pub fn to_uncompressed_public_key(&self) -> Result<[u8; 65]> {
+    pub fn to_uncompressed_public_key(self) -> Result<[u8; 65]> {
         if self.is_infinity {
             return Err(crypto_error!(PointAtInfinity));
         }
@@ -220,13 +235,13 @@ impl SecurePoint {
     }
 
     /// Generate secure compressed public key (33 bytes)
-    pub fn to_compressed_public_key(&self) -> Result<[u8; 33]> {
+    pub fn to_compressed_public_key(self) -> Result<[u8; 33]> {
         if self.is_infinity {
             return Err(crypto_error!(PointAtInfinity));
         }
 
         let mut public_key = [0u8; 33];
-        
+
         // Extract coordinates safely
         let (x_val, y_val) = self.coordinates()?;
         let x_u256 = x_val.u;
@@ -235,7 +250,7 @@ impl SecurePoint {
         // Determine parity of y coordinate
         let y_bytes = y_u256.to_be_bytes();
         let y_is_even = (y_bytes[31] & 1) == 0;
-        
+
         public_key[0] = if y_is_even { 0x02 } else { 0x03 };
 
         // Store x coordinate
@@ -286,7 +301,7 @@ impl SecurePoint {
         let seven = Field256::new_unchecked(U256::from(7u128), P);
         let x_squared = x_field.checked_mul(x_field)?;
         let x_cubed = x_squared.checked_mul(x_field)?;
-        let y_squared = x_cubed.checked_add(seven)?;
+        let _y_squared = x_cubed.checked_add(seven)?;
 
         // This would require implementing square root in finite field
         // For now, return error as this requires complex arithmetic
@@ -303,11 +318,11 @@ impl SecurePoint {
         if self.is_infinity != other.is_infinity {
             return false;
         }
-        
+
         if self.is_infinity {
             return true; // Both at infinity
         }
-        
+
         self.x == other.x && self.y == other.y
     }
 }
@@ -332,7 +347,7 @@ impl Ord for SecurePoint {
             (true, true) => return Ordering::Equal,
             (true, false) => return Ordering::Less,
             (false, true) => return Ordering::Greater,
-            (false, false) => {},
+            (false, false) => {}
         }
 
         // Compare coordinates
@@ -363,7 +378,7 @@ mod tests {
     fn test_point_creation_and_validation() {
         let generator = SecurePoint::generator();
         assert!(generator.is_ok());
-        
+
         let point = generator.unwrap();
         assert!(point.validate_on_curve().is_ok());
     }
@@ -373,10 +388,10 @@ mod tests {
         let g = SecurePoint::generator().unwrap();
         let double_g = g.checked_add(g);
         assert!(double_g.is_ok());
-        
+
         let double_g2 = g.double();
         assert!(double_g2.is_ok());
-        
+
         // Both methods should give same result
         assert_eq!(double_g.unwrap(), double_g2.unwrap());
     }
@@ -385,7 +400,7 @@ mod tests {
     fn test_scalar_multiplication() {
         let g = SecurePoint::generator().unwrap();
         let scalar = U256::from(5u128);
-        
+
         let result = g.scalar_multiply(scalar);
         assert!(result.is_ok());
     }
@@ -393,11 +408,11 @@ mod tests {
     #[test]
     fn test_public_key_generation() {
         let g = SecurePoint::generator().unwrap();
-        
+
         let uncompressed = g.to_uncompressed_public_key();
         assert!(uncompressed.is_ok());
         assert_eq!(uncompressed.unwrap().len(), 65);
-        
+
         let compressed = g.to_compressed_public_key();
         assert!(compressed.is_ok());
         assert_eq!(compressed.unwrap().len(), 33);
@@ -407,7 +422,7 @@ mod tests {
     fn test_infinity_point() {
         let inf = SecurePoint::infinity();
         assert!(inf.is_infinity());
-        
+
         let g = SecurePoint::generator().unwrap();
         let result = g.checked_add(inf);
         assert!(result.is_ok());
@@ -419,7 +434,7 @@ mod tests {
         // Create invalid point (not on curve)
         let invalid_x = Field256::new_unchecked(U256::from(1u128), P);
         let invalid_y = Field256::new_unchecked(U256::from(1u128), P);
-        
+
         let invalid_point = SecurePoint::new(invalid_x, invalid_y);
         assert!(invalid_point.is_err());
     }

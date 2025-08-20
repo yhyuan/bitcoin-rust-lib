@@ -1,9 +1,7 @@
 //! Comprehensive error handling for Bitcoin library
-//! 
+//!
 //! This module provides secure error types that prevent information leakage
 //! and enable proper error propagation throughout the library.
-
-#![no_std]
 
 use core::fmt::{Display, Formatter, Result as FmtResult};
 
@@ -224,6 +222,7 @@ macro_rules! input_error {
 }
 
 /// Trait for converting results to Bitcoin errors
+#[allow(dead_code)]
 pub trait ToBitcoinError<T> {
     fn to_bitcoin_error(self) -> Result<T>;
 }

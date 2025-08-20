@@ -3,10 +3,8 @@
 //! This module provides a secure stack with bounds checking, resource limits,
 //! and memory safety guarantees to prevent script execution attacks.
 
-#![no_std]
-
-use crate::error::{BitcoinError, Result, ScriptError, MemoryError};
-use crate::{script_error, memory_error};
+use crate::error::{BitcoinError, MemoryError, Result, ScriptError};
+use crate::{memory_error, script_error};
 
 /// Maximum stack size to prevent memory exhaustion attacks
 const MAX_STACK_SIZE: usize = 1000;
@@ -30,6 +28,7 @@ pub struct SecureStack {
     total_memory: usize,
 }
 
+#[allow(dead_code)]
 impl SecureStack {
     /// Create a new empty secure stack
     pub fn new() -> Self {
@@ -81,7 +80,7 @@ impl SecureStack {
 
         let index = self.count - 1;
         let length = self.lengths[index];
-        
+
         if length == 0 {
             return Err(script_error!(InvalidScriptData));
         }
@@ -107,7 +106,7 @@ impl SecureStack {
 
         let index = self.count - 1;
         let length = self.lengths[index];
-        
+
         if length == 0 {
             return Err(script_error!(InvalidScriptData));
         }
@@ -123,7 +122,7 @@ impl SecureStack {
 
         let index = self.count - 1 - depth;
         let length = self.lengths[index];
-        
+
         if length == 0 {
             return Err(script_error!(InvalidScriptData));
         }
@@ -160,10 +159,10 @@ impl SecureStack {
 
         let (item1_data, item1_len) = self.pop()?;
         let (item2_data, item2_len) = self.pop()?;
-        
+
         self.push(&item1_data[..item1_len])?;
         self.push(&item2_data[..item2_len])?;
-        
+
         Ok(())
     }
 
@@ -176,11 +175,11 @@ impl SecureStack {
         let (item1_data, item1_len) = self.pop()?;
         let (item2_data, item2_len) = self.pop()?;
         let (item3_data, item3_len) = self.pop()?;
-        
+
         self.push(&item2_data[..item2_len])?;
         self.push(&item1_data[..item1_len])?;
         self.push(&item3_data[..item3_len])?;
-        
+
         Ok(())
     }
 
@@ -213,21 +212,21 @@ impl SecureStack {
     /// Validate stack integrity
     pub fn validate(&self) -> Result<()> {
         let mut calculated_memory = 0;
-        
+
         for i in 0..self.count {
             let length = self.lengths[i];
-            
+
             if length > MAX_ITEM_SIZE {
                 return Err(memory_error!(InvalidBounds));
             }
-            
+
             calculated_memory += length;
         }
-        
+
         if calculated_memory != self.total_memory {
             return Err(script_error!(InvalidScriptData));
         }
-        
+
         Ok(())
     }
 
@@ -262,7 +261,7 @@ impl<'a> Iterator for SecureStackIterator<'a> {
 
         let index = self.stack.count - 1 - self.current;
         let length = self.stack.lengths[index];
-        
+
         if length == 0 {
             return None;
         }
@@ -278,6 +277,7 @@ pub struct AltStack {
     stack: SecureStack,
 }
 
+#[allow(dead_code)]
 impl AltStack {
     pub fn new() -> Self {
         AltStack {
@@ -319,12 +319,12 @@ mod tests {
     #[test]
     fn test_basic_stack_operations() {
         let mut stack = SecureStack::new();
-        
+
         // Test push and pop
         let data = b"hello";
         assert!(stack.push(data).is_ok());
         assert_eq!(stack.size(), 1);
-        
+
         let (popped_data, popped_len) = stack.pop().unwrap();
         assert_eq!(&popped_data[..popped_len], data);
         assert_eq!(stack.size(), 0);
@@ -333,13 +333,13 @@ mod tests {
     #[test]
     fn test_stack_overflow_protection() {
         let mut stack = SecureStack::new();
-        
+
         // Fill stack to capacity
         for i in 0..MAX_STACK_SIZE {
             let data = [i as u8; 1];
             assert!(stack.push(&data).is_ok());
         }
-        
+
         // Next push should fail
         let data = [255u8; 1];
         assert!(stack.push(&data).is_err());
@@ -348,7 +348,7 @@ mod tests {
     #[test]
     fn test_item_size_limit() {
         let mut stack = SecureStack::new();
-        
+
         // Try to push oversized item
         let large_data = [0u8; MAX_ITEM_SIZE + 1];
         assert!(stack.push(&large_data).is_err());
@@ -357,16 +357,16 @@ mod tests {
     #[test]
     fn test_memory_limit() {
         let mut stack = SecureStack::new();
-        
+
         // Fill to memory limit
         let item_size = MAX_ITEM_SIZE;
         let max_items = MAX_TOTAL_MEMORY / item_size;
-        
+
         for _ in 0..max_items {
             let data = [1u8; MAX_ITEM_SIZE];
             assert!(stack.push(&data).is_ok());
         }
-        
+
         // One more should fail
         let data = [1u8; 1];
         assert!(stack.push(&data).is_err());
@@ -375,7 +375,7 @@ mod tests {
     #[test]
     fn test_stack_underflow_protection() {
         let mut stack = SecureStack::new();
-        
+
         // Pop from empty stack should fail
         assert!(stack.pop().is_err());
         assert!(stack.peek().is_err());
@@ -384,11 +384,11 @@ mod tests {
     #[test]
     fn test_dup_operation() {
         let mut stack = SecureStack::new();
-        
+
         let data = b"test";
         stack.push(data).unwrap();
         stack.dup().unwrap();
-        
+
         assert_eq!(stack.size(), 2);
         assert_eq!(stack.peek().unwrap(), data);
     }
@@ -396,17 +396,17 @@ mod tests {
     #[test]
     fn test_swap_operation() {
         let mut stack = SecureStack::new();
-        
+
         let data1 = b"first";
         let data2 = b"second";
-        
+
         stack.push(data1).unwrap();
         stack.push(data2).unwrap();
         stack.swap().unwrap();
-        
+
         let (pop1_data, pop1_len) = stack.pop().unwrap();
         assert_eq!(&pop1_data[..pop1_len], data1);
-        
+
         let (pop2_data, pop2_len) = stack.pop().unwrap();
         assert_eq!(&pop2_data[..pop2_len], data2);
     }
