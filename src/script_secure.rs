@@ -265,7 +265,12 @@ impl ScriptExecutor {
             return Err(script_error!(ScriptTooLong));
         }
 
+        // Reset all execution state for new script
         self.pc = 0;
+        self.op_count = 0;
+        self.sig_check_count = 0;
+        self.if_depth = 0;
+        self.code_separator_pos = None;
 
         while self.pc < script.len() {
             // Check operation count limit
@@ -580,11 +585,26 @@ mod tests {
 
     #[test]
     fn test_stack_operations() {
-        let mut executor = ScriptExecutor::new();
-
-        // Push two values and swap them
-        let script = [0x51, 0x52, 0x7c]; // OP_1, OP_2, OP_SWAP
-        assert!(executor.execute(&script).is_ok());
+        // Test OP_1 alone
+        {
+            let mut executor = ScriptExecutor::new();
+            let script = [0x51]; // OP_1
+            assert!(executor.execute(&script).is_ok());
+        }
+        
+        // Test OP_1, OP_2 
+        {
+            let mut executor = ScriptExecutor::new();
+            let script = [0x51, 0x52]; // OP_1, OP_2
+            assert!(executor.execute(&script).is_ok());
+        }
+        
+        // Test OP_1, OP_2, OP_SWAP
+        {
+            let mut executor = ScriptExecutor::new();
+            let script = [0x51, 0x52, 0x7c]; // OP_1, OP_2, OP_SWAP
+            assert!(executor.execute(&script).is_ok());
+        }
     }
 
     #[test]

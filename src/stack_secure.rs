@@ -355,16 +355,23 @@ mod tests {
     fn test_memory_limit() {
         let mut stack = SecureStack::new();
 
-        // Fill to memory limit
-        let item_size = MAX_ITEM_SIZE;
-        let max_items = MAX_TOTAL_MEMORY / item_size;
-
-        for _ in 0..max_items {
+        // Fill to just under memory limit with small items
+        let mut total_pushed = 0;
+        while total_pushed + MAX_ITEM_SIZE <= MAX_TOTAL_MEMORY {
             let data = [1u8; MAX_ITEM_SIZE];
             assert!(stack.push(&data).is_ok());
+            total_pushed += MAX_ITEM_SIZE;
         }
 
-        // One more should fail
+        // Now try to push something that would exactly fill remaining space
+        let remaining = MAX_TOTAL_MEMORY - total_pushed;
+        if remaining > 0 && remaining <= MAX_ITEM_SIZE {
+            // This should succeed - create array on stack (limited by MAX_ITEM_SIZE)
+            let data = [1u8; MAX_ITEM_SIZE];
+            assert!(stack.push(&data[..remaining]).is_ok());
+        }
+
+        // One more byte should fail
         let data = [1u8; 1];
         assert!(stack.push(&data).is_err());
     }
