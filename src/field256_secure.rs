@@ -11,6 +11,7 @@ use core::ops::{Add, Div, Mul, Sub};
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
+#[allow(unknown_lints, unpredictable_function_pointer_comparisons)]
 pub struct Field256 {
     pub u: U256,
     pub p: fn() -> U256,
