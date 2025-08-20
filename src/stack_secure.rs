@@ -231,7 +231,7 @@ impl SecureStack {
     }
 
     /// Create iterator over stack items (top to bottom)
-    pub fn iter(&self) -> SecureStackIterator {
+    pub fn iter(&self) -> SecureStackIterator<'_> {
         SecureStackIterator {
             stack: self,
             current: 0,

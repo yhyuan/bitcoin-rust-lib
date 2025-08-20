@@ -257,7 +257,7 @@ impl PartialOrd for Field256 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::u256::{N, P};
+    use crate::u256::P;
 
     #[test]
     fn test_secure_field_creation() {
