@@ -583,21 +583,20 @@ mod tests {
         assert!(result.is_err());
     }
 
-
-    #[test]  
+    #[test]
     fn test_stack_operations() {
         // Test basic stack operations work individually
         // This test verifies the core functionality without complex script execution
         let mut executor = ScriptExecutor::new();
-        
+
         // Manually test the stack operations that the script would do
         // OP_1: push 1
         assert!(executor.stack.push(&[1u8]).is_ok());
-        // OP_2: push 2  
+        // OP_2: push 2
         assert!(executor.stack.push(&[2u8]).is_ok());
         // OP_SWAP: swap top two
         assert!(executor.stack.swap().is_ok());
-        
+
         // Verify the swap worked - 1 should now be on top
         let (top_data, top_len) = executor.stack.pop().unwrap();
         assert_eq!(top_data[0], 1u8);
