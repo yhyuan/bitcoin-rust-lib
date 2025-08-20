@@ -78,7 +78,7 @@ impl U256 {
             //(x.overflowing_shr(64).0, x.overflowing_shl(64).0.overflowing_shr(64).0)
             (
                 x.overflowing_shr(64).0,
-                x & 0x0000_0000_0000_0000FFFF_FFFF_FFFF_FFFF_u128,
+                x & 0x0000_0000_0000_0000_FFFF_FFFF_FFFF_FFFF_u128,
             )
         };
         let (x0, x1) = divide_u128(&x);

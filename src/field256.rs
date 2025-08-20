@@ -12,24 +12,24 @@ pub struct Field256 {
 #[allow(dead_code)]
 impl Field256 {
     pub fn new(u: U256, p: fn() -> U256) -> Self {
-        Field256 { u: u, p: p }
+        Field256 { u, p }
     }
     pub fn zero(p: fn() -> U256) -> Field256 {
         Field256 {
             u: U256::zero(),
-            p: p,
+            p,
         }
     }
     pub fn one(p: fn() -> U256) -> Field256 {
         Field256 {
             u: U256::one(),
-            p: p,
+            p,
         }
     }
     pub fn max_value(p: fn() -> U256) -> Field256 {
         Field256 {
             u: p() - U256::one(),
-            p: p,
+            p,
         }
     }
     pub fn eliminate(x: (u128, u128, u128), prime: U256) -> U256 {
@@ -144,7 +144,7 @@ impl Mul for Field256 {
         // let U256((y0, y1)) = Field256::eliminate((x0, x1, x2), prime);
         let (y0, y1) = (Field256::eliminate((x0, x1, x2), prime)).unwrap();
         let u = Field256::eliminate((y0, y1, x3), prime);
-        Field256 { u: u, p: self_p }
+        Field256 { u, p: self_p }
     }
 }
 
