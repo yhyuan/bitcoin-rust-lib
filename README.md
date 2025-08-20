@@ -1,4 +1,6 @@
-# u256
-[![Build Status](https://travis-ci.org/sorpaas/u256.svg?branch=master)](https://travis-ci.org/sorpaas/u256)
+# bitcoin-rust-lib
 
-A bare minimal (and will be fast) U256 implementation for Rust
+A Bitcoin implementation for Rust
+
+This project aims to implement Bitcoin-related algorithms from scratch, enabling the creation of a Bitcoin wallet on an embedded device.
+

@@ -1,79 +1,55 @@
-// Custom double-linked list node
-struct Node<T> {
-    value: T,
-    next: Option<*mut Node<T>>,
-    prev: Option<*mut Node<T>>,
+// Simple stack implementation using fixed-size array for no_std compatibility
+#[allow(dead_code)]
+const STACK_SIZE: usize = 1000;
+
+#[allow(dead_code)]
+pub struct Stack<T: Copy + Default> {
+    data: [T; STACK_SIZE],
+    len: usize,
 }
 
-struct LinkedList<T> {
-    head: Option<*mut Node<T>>,
-    tail: Option<*mut Node<T>>,
-}
-
-impl<T> LinkedList<T> {
-    fn new() -> Self {
-        LinkedList { head: None, tail: None }
-    }
-
-    fn push_back(&mut self, value: T) {
-        let new_tail = Box::new(Node {
-            value,
-            next: None,
-            prev: self.tail,
-        });
-
-        let raw_tail: *mut Node<T> = Box::leak(new_tail);
-
-        if let Some(mut tail) = self.tail {
-            unsafe {
-                (*tail).next = Some(raw_tail);
-            }
-        } else {
-            self.head = Some(raw_tail);
+#[allow(dead_code)]
+impl<T: Copy + Default> Stack<T> {
+    pub fn new() -> Self {
+        Stack {
+            data: [T::default(); STACK_SIZE],
+            len: 0,
         }
-
-        self.tail = Some(raw_tail);
     }
 
-    fn pop_back(&mut self) -> Option<T> {
-        if let Some(tail) = self.tail.take() {
-            unsafe {
-                let node = Box::from_raw(tail);
-                self.tail = node.prev;
-
-                if let Some(mut prev) = node.prev {
-                    (*prev).next = None;
-                } else {
-                    self.head = None;
-                }
-
-                Some(node.value)
-            }
+    pub fn push(&mut self, value: T) -> Result<(), &'static str> {
+        if self.len >= STACK_SIZE {
+            Err("Stack overflow")
         } else {
+            self.data[self.len] = value;
+            self.len += 1;
+            Ok(())
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        if self.len == 0 {
             None
+        } else {
+            self.len -= 1;
+            Some(self.data[self.len])
         }
     }
-}
 
-struct Stack<T> {
-    list: LinkedList<T>,
-}
-
-impl<T> Stack<T> {
-    fn new() -> Self {
-        Stack { list: LinkedList::new() }
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
-    fn push(&mut self, value: T) {
-        self.list.push_back(value);
+    pub fn peek(&self) -> Option<&T> {
+        if self.len == 0 {
+            None
+        } else {
+            Some(&self.data[self.len - 1])
+        }
     }
 
-    fn pop(&mut self) -> Option<T> {
-        self.list.pop_back()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.list.head.is_none()
+    pub fn len(&self) -> usize {
+        self.len
     }
 
     fn peek(&self) -> Option<&T> {
@@ -86,7 +62,7 @@ impl<T> Stack<T> {
         }
     }
 }
-/* 
+/*
 fn main() {
     let mut stack = Stack::new();
 
@@ -107,13 +83,13 @@ mod tests {
 
     #[test]
     fn test_stack_push_pop() {
-        let mut stack = Stack::new();
+        let mut stack: Stack<i32> = Stack::new();
 
         assert!(stack.is_empty());
 
-        stack.push(1);
-        stack.push(2);
-        stack.push(3);
+        stack.push(1).unwrap();
+        stack.push(2).unwrap();
+        stack.push(3).unwrap();
 
         assert_eq!(stack.pop(), Some(3));
         assert_eq!(stack.pop(), Some(2));
@@ -125,11 +101,11 @@ mod tests {
 
     #[test]
     fn test_stack_peek() {
-        let mut stack = Stack::new();
+        let mut stack: Stack<i32> = Stack::new();
 
         assert_eq!(stack.peek(), None);
 
-        stack.push(42);
+        stack.push(42).unwrap();
 
         assert_eq!(stack.peek(), Some(&42));
         assert_eq!(stack.pop(), Some(42));
@@ -137,22 +113,21 @@ mod tests {
     }
 
     #[test]
-    fn test_linked_list_push_pop() {
-        let mut list = LinkedList::new();
+    fn test_stack_len() {
+        let mut stack: Stack<i32> = Stack::new();
 
-        assert!(list.head.is_none());
-        assert!(list.tail.is_none());
+        assert_eq!(stack.len(), 0);
 
-        list.push_back(1);
-        list.push_back(2);
-        list.push_back(3);
+        stack.push(1).unwrap();
+        assert_eq!(stack.len(), 1);
 
-        assert_eq!(list.pop_back(), Some(3));
-        assert_eq!(list.pop_back(), Some(2));
-        assert_eq!(list.pop_back(), Some(1));
-        assert_eq!(list.pop_back(), None);
+        stack.push(2).unwrap();
+        assert_eq!(stack.len(), 2);
 
-        assert!(list.head.is_none());
-        assert!(list.tail.is_none());
+        stack.pop();
+        assert_eq!(stack.len(), 1);
+
+        stack.pop();
+        assert_eq!(stack.len(), 0);
     }
 }

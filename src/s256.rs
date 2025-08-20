@@ -1,7 +1,5 @@
-
-
-use core::ops::{Add, Sub, Mul, Div};
 use crate::u256::U256;
+use core::ops::{Add, Div, Mul, Sub};
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
@@ -13,11 +11,11 @@ impl S256 {
     }
 
     pub fn absolute_value(self) -> U256 {
-        self.0.0
+        self.0 .0
     }
 
     pub fn get_sign(self) -> bool {
-        self.0.1
+        self.0 .1
     }
 }
 
@@ -26,10 +24,22 @@ impl Add for S256 {
 
     fn add(self, other: S256) -> S256 {
         match (self, other) {
-            (S256((u1, true)),  S256((u2, true)))   =>  S256((u1 + u2, true)),
-            (S256((u1, true)),  S256((u2, false)))  =>  if u1 >= u2 {S256((u1 - u2, true))} else {S256((u2 - u1, false))},
-            (S256((u1, false)), S256((u2, true)))   =>  if u2 >= u1 {S256((u2 - u1, true))} else {S256((u1 - u2, false))},
-            (S256((u1, false)), S256((u2, false)))  =>  S256((u1 + u2, false)),
+            (S256((u1, true)), S256((u2, true))) => S256((u1 + u2, true)),
+            (S256((u1, true)), S256((u2, false))) => {
+                if u1 >= u2 {
+                    S256((u1 - u2, true))
+                } else {
+                    S256((u2 - u1, false))
+                }
+            }
+            (S256((u1, false)), S256((u2, true))) => {
+                if u2 >= u1 {
+                    S256((u2 - u1, true))
+                } else {
+                    S256((u1 - u2, false))
+                }
+            }
+            (S256((u1, false)), S256((u2, false))) => S256((u1 + u2, false)),
         }
     }
 }
@@ -39,10 +49,22 @@ impl Sub for S256 {
 
     fn sub(self, other: S256) -> S256 {
         match (self, other) {
-            (S256((u1, true)), S256((u2, true)))  =>  if u1 >= u2 {S256((u1 - u2, true))} else {S256((u2 - u1, false))},
-            (S256((u1, true)), S256((u2, false))) =>  S256((u1 + u2, true)),
-            (S256((u1, false)), S256((u2, true))) =>  S256((u1 + u2, false)),
-            (S256((u1, false)), S256((u2, false)))  => if u2 >= u1 {S256((u2 - u1, true))} else {S256((u1 - u2, false))},
+            (S256((u1, true)), S256((u2, true))) => {
+                if u1 >= u2 {
+                    S256((u1 - u2, true))
+                } else {
+                    S256((u2 - u1, false))
+                }
+            }
+            (S256((u1, true)), S256((u2, false))) => S256((u1 + u2, true)),
+            (S256((u1, false)), S256((u2, true))) => S256((u1 + u2, false)),
+            (S256((u1, false)), S256((u2, false))) => {
+                if u2 >= u1 {
+                    S256((u2 - u1, true))
+                } else {
+                    S256((u1 - u2, false))
+                }
+            }
         }
     }
 }
@@ -67,10 +89,14 @@ impl Div for S256 {
         assert!(u2 != U256::zero());
         let (z0, z1) = u1 / u2;
         match (self, other) {
-            (S256((_, true)), S256((_, true)))  =>  (S256((z0, true)), S256((z1, true))),
-            (S256((_, true)), S256((u2, false))) =>  (S256((z0 + U256::one(), false)), S256((u2 - z1, false))),
-            (S256((_, false)), S256((u2, true))) =>  (S256((z0 + U256::one(), false)), S256((u2 - z1, true))),
-            (S256((_, false)), S256((_, false)))  =>  (S256((z0, true)), S256((z1, false))),
+            (S256((_, true)), S256((_, true))) => (S256((z0, true)), S256((z1, true))),
+            (S256((_, true)), S256((u2, false))) => {
+                (S256((z0 + U256::one(), false)), S256((u2 - z1, false)))
+            }
+            (S256((_, false)), S256((u2, true))) => {
+                (S256((z0 + U256::one(), false)), S256((u2 - z1, true)))
+            }
+            (S256((_, false)), S256((_, false))) => (S256((z0, true)), S256((z1, false))),
         }
     }
 }
