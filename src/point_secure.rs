@@ -191,11 +191,11 @@ impl SecurePoint {
         if index >= 256 {
             return false;
         }
-        
+
         let bytes = value.to_be_bytes();
-        let byte_index = 31 - (index / 8);  // Big-endian: MSB is at index 0
+        let byte_index = 31 - (index / 8); // Big-endian: MSB is at index 0
         let bit_index = index % 8;
-        
+
         (bytes[byte_index] >> bit_index) & 1 == 1
     }
 

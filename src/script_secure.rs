@@ -439,11 +439,11 @@ impl ScriptExecutor {
                 // Pop two values from stack and add them
                 let (b_data, b_len) = self.stack.pop()?;
                 let (a_data, a_len) = self.stack.pop()?;
-                
+
                 // Convert to integers (simple implementation - just use first byte)
                 let a = if a_len > 0 { a_data[0] as u64 } else { 0 };
                 let b = if b_len > 0 { b_data[0] as u64 } else { 0 };
-                
+
                 let result = a + b;
                 let result_bytes = [result as u8];
                 self.stack.push(&result_bytes)?;
@@ -591,14 +591,14 @@ mod tests {
             let script = [0x51]; // OP_1
             assert!(executor.execute(&script).is_ok());
         }
-        
-        // Test OP_1, OP_2 
+
+        // Test OP_1, OP_2
         {
             let mut executor = ScriptExecutor::new();
             let script = [0x51, 0x52]; // OP_1, OP_2
             assert!(executor.execute(&script).is_ok());
         }
-        
+
         // Test OP_1, OP_2, OP_SWAP
         {
             let mut executor = ScriptExecutor::new();
