@@ -206,7 +206,7 @@ impl Hmac {
 
 #[cfg(test)]
 mod tests {
-    use super::{Sha256, Hmac};
+    use super::{Hmac, Sha256};
 
     #[test]
     fn hash_256() {

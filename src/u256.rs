@@ -6,8 +6,8 @@ use crate::field256::Field256;
 use crate::point::Point;
 use crate::ripemd160::Ripemd160;
 use crate::s256::S256;
-use crate::sha256::Sha256;
 use crate::sha256::Hmac;
+use crate::sha256::Sha256;
 
 pub const N: fn() -> U256 = || -> U256 {
     U256((
@@ -431,9 +431,7 @@ impl Ord for U256 {
     fn cmp(&self, other: &U256) -> Ordering {
         let U256((self_upper, self_lower)) = self;
         let U256((other_upper, other_lower)) = other;
-        let compare_u128 = |x: u128, y: u128| -> Ordering {
-            x.cmp(&y)
-        };
+        let compare_u128 = |x: u128, y: u128| -> Ordering { x.cmp(&y) };
         if self_upper == other_upper {
             compare_u128(*self_lower, *other_lower)
         } else {
@@ -509,9 +507,7 @@ impl Div for U256 {
             Ordering::Less => (U256::zero(), self),
             Ordering::Equal => (U256::one(), U256::zero()),
             Ordering::Greater => match (self, other) {
-                (U256((x0, x1)), U256((0u128, 1u128))) => {
-                    (U256((x0, x1)), U256::zero())
-                }
+                (U256((x0, x1)), U256((0u128, 1u128))) => (U256((x0, x1)), U256::zero()),
                 (U256((0u128, x1)), U256((0u128, y1))) => {
                     (U256((0u128, x1 / y1)), U256((0u128, x1 % y1)))
                 }
@@ -1333,8 +1329,7 @@ mod tests {
         assert_eq!(upper, 0u128);
         assert_eq!(lower, 1u128);
 
-        let (upper, lower) =
-            (U256::new(u128::MAX, 0u128) - U256::new(0u128, u128::MAX)).unwrap();
+        let (upper, lower) = (U256::new(u128::MAX, 0u128) - U256::new(0u128, u128::MAX)).unwrap();
         assert_eq!(upper, u128::MAX - 1);
         assert_eq!(lower, 1u128);
     }
@@ -1420,8 +1415,8 @@ mod tests {
         assert_eq!(r, U256::zero());
         assert_eq!(d, U256::one() + U256::one() + U256::one());
 
-        let (d, r) = U256::max_value()
-            / U256::new(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFu128, u128::MAX);
+        let (d, r) =
+            U256::max_value() / U256::new(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFu128, u128::MAX);
         assert_eq!(r, U256::one());
         assert_eq!(d, U256::one() + U256::one());
     }
