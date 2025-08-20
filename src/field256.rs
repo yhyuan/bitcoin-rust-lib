@@ -15,16 +15,10 @@ impl Field256 {
         Field256 { u, p }
     }
     pub fn zero(p: fn() -> U256) -> Field256 {
-        Field256 {
-            u: U256::zero(),
-            p,
-        }
+        Field256 { u: U256::zero(), p }
     }
     pub fn one(p: fn() -> U256) -> Field256 {
-        Field256 {
-            u: U256::one(),
-            p,
-        }
+        Field256 { u: U256::one(), p }
     }
     pub fn max_value(p: fn() -> U256) -> Field256 {
         Field256 {
