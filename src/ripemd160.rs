@@ -230,7 +230,7 @@ impl Ripemd160 {
 
 #[cfg(test)]
 mod tests {
-    use ripemd160::Ripemd160;
+    use super::Ripemd160;
     #[test]
     fn ripemd_160() {
         let result = Ripemd160::digest("Rosetta Code".as_bytes());

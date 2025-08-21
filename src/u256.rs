@@ -566,7 +566,7 @@ impl Shr<usize> for U256 {
 #[cfg(test)]
 mod tests {
     // use crate::U256;
-    use U256;
+    use super::U256;
     #[test]
     fn u256_zero() {
         let (upper, lower) = U256::zero().unwrap();

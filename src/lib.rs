@@ -29,13 +29,22 @@
 
 #![no_std]
 //#![allow(clippy::unreadable_literal)]
+mod error;
 mod field256;
+mod field256_secure;
 mod point;
+mod point_secure;
 mod ripemd160;
 mod s256;
+mod safe_conversions;
 mod sha256;
-mod stack;
 mod u256;
+// mod stack; // Disabled: uses Box which is incompatible with no_std
+mod script_secure;
+mod security_tests;
+mod stack_secure;
 //mod hmac;
+pub use error::{BitcoinError, Result};
 pub use s256::S256;
-pub use u256::U256;
+//use hmac::HMAC;
+//use core::default::Default;

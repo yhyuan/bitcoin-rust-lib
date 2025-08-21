@@ -51,6 +51,16 @@ impl<T: Copy + Default> Stack<T> {
     pub fn len(&self) -> usize {
         self.len
     }
+
+    fn peek(&self) -> Option<&T> {
+        if let Some(tail) = self.list.tail {
+            unsafe {
+                Some(&(*tail).value)
+            }
+        } else {
+            None
+        }
+    }
 }
 /*
 fn main() {
